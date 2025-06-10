@@ -10,7 +10,7 @@ import { User, Users, Calendar, Settings, ChevronLeft, CheckCircle2, XCircle, Ba
 // IMPORTANT: REPLACE THESE WITH YOUR ACTUAL FIREBASE CONFIGURATION.
 // Go to your Firebase Project Settings -> "Your apps" section to find these values.
 const firebaseConfig = {
-  apiKey: "AIzaSyCCS1fFfmH4Y4tXn6Rv7w4baNYrz5VSFLg",
+  apiKey: "AIzaSyCCS1fFfmH4Y4tXn6Rv7w4baNYrz5VSFLG",
   authDomain: "gym-check-in-d1bf5.firebaseapp.com",
   projectId: "gym-check-in-d1bf5",
   storageBucket: "gym-check-in-d1bf5.firebasestorage.app",
