@@ -43,11 +43,11 @@ jobs:
       - name: Install dependencies
         run: npm install # Install your project's npm dependencies
 
-      - name: Diagnose: Print vite.config.js content
-        # Ensure this 'run' command is indented with TWO spaces relative to '- name:' above it.
+      - name:Diagnose: Print vite.config.js content
+        # CRUCIAL: Ensure this 'run:' line below has EXACTLY 4 spaces before 'run:'.
+        # No extra characters or lines above this 'run:' on the same indentation level.
         run: cat vite.config.js
-        # This will print the contents of your vite.config.js file to the Actions log.
-        # This is CRUCIAL for debugging if the correct config is being used.
+        # This step prints the contents of vite.config.js to the Actions log for debugging.
 
       - name: Build React app
         run: npm run build # Run your project's build command, which creates the 'dist' folder
