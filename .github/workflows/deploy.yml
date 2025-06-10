@@ -34,8 +34,19 @@ jobs:
           node-version: 20 # Use a stable Node.js version, e.g., 20 or 18
           cache: 'npm' # Cache npm dependencies for faster builds
 
+      - name: Clean build environment (remove node_modules and dist)
+        run: |
+          rm -rf node_modules
+          rm -rf dist
+        # Important: This ensures a completely fresh installation and build each time.
+
       - name: Install dependencies
         run: npm install # Install your project's npm dependencies
+
+      - name: Diagnose: Print vite.config.js content
+        run: cat vite.config.js
+        # This will print the contents of your vite.config.js file to the Actions log.
+        # This is CRUCIAL for debugging if the correct config is being used.
 
       - name: Build React app
         run: npm run build # Run your project's build command, which creates the 'dist' folder

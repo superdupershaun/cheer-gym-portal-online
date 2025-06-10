@@ -10,13 +10,20 @@ import { User, Users, Calendar, Settings, ChevronLeft, CheckCircle2, XCircle, Ba
 // IMPORTANT: REPLACE THESE WITH YOUR ACTUAL FIREBASE CONFIGURATION.
 // Go to your Firebase Project Settings -> "Your apps" section to find these values.
 const firebaseConfig = {
-  apiKey: "AIzaSyCCS1fFfmH4Y4tXn6Rv7w4baNYrz5VSFLG",
+  apiKey: "AIzaSyCCS1fFfmH4Y4tXn6Rv7w4baNYrz5VSFLg",
+
   authDomain: "gym-check-in-d1bf5.firebaseapp.com",
+
   projectId: "gym-check-in-d1bf5",
+
   storageBucket: "gym-check-in-d1bf5.firebasestorage.app",
+
   messagingSenderId: "667813844333",
+
   appId: "1:667813844333:web:84e6746664e0540c933664",
+
   measurementId: "G-K7WD5R8DDB"
+
 };
 
 // We will use the projectId from your Firebase config as the appId for consistent Firestore paths
