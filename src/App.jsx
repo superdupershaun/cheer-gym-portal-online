@@ -1095,7 +1095,7 @@ const AthleteProfiles = ({ db, currentUserId, userRole, showAppToast }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddAthleteModal, setShowAddAthleteModal] = useState(false);
   const [selectedAthlete, setSelectedAthlete] = useState(null);
-  const [isEditingAthlete, setIsEditingAthlete] = useState(false);
+  const [isEditingAthlete, setIsEditingAthlete] = useState(false); // Correctly defined state for AthleteProfiles
 
   // Fetch all athletes and listen for real-time updates
   useEffect(() => {
@@ -1139,7 +1139,8 @@ const AthleteProfiles = ({ db, currentUserId, userRole, showAppToast }) => {
       showAppToast("Permission denied. Only Admin can delete athletes.", 'error');
       return;
     }
-    if (!window.confirm("Are you sure you want to delete this athlete? This action cannot be undone.")) { // Using window.confirm for simplicity, will convert to custom modal if needed
+    // Changed to a custom modal later, for now keeping window.confirm
+    if (!window.confirm("Are you sure you want to delete this athlete? This action cannot be undone.")) {
       return;
     }
     showAppToast("Deleting athlete...", 'info');
@@ -1147,7 +1148,8 @@ const AthleteProfiles = ({ db, currentUserId, userRole, showAppToast }) => {
       const athleteDocRef = doc(db, privateUserDataPath(currentUserId), COLLECTIONS.ATHLETES, athleteId);
       await deleteDoc(athleteDocRef);
       showAppToast("Athlete deleted successfully!");
-    } catch (error) {
+    }
+    catch (error) {
       console.error("Error deleting athlete:", error);
       showAppToast(`Failed to delete: ${error.message}`, 'error');
     }
@@ -1155,12 +1157,12 @@ const AthleteProfiles = ({ db, currentUserId, userRole, showAppToast }) => {
 
   const handleOpenProfile = (athlete) => {
     setSelectedAthlete(athlete);
-    setIsEditingAthlete(false); // Default to view mode
+    setIsEditingAthlete(false); // Default to view mode when opening profile
   };
 
   const handleCloseProfile = () => {
     setSelectedAthlete(null);
-    setIsEditingAthlete(false);
+    setIsEditingAthlete(false); // Ensure edit mode is off when closing
   };
 
   const handleEditProfileToggle = () => {
@@ -1265,6 +1267,10 @@ const AthleteProfiles = ({ db, currentUserId, userRole, showAppToast }) => {
           onClose={() => setShowAddAthleteModal(false)}
           showAppToast={showAppToast}
           isNew={true}
+          // When adding new, no initialData or athleteId
+          isEditing={true} // New athletes are always "editable" for initial input
+          setParentIsEditing={() => {}} // No external state change needed for new form
+          userRole={userRole}
         />
       </Modal>
 
@@ -1290,8 +1296,8 @@ const AthleteProfiles = ({ db, currentUserId, userRole, showAppToast }) => {
             showAppToast={showAppToast}
             isNew={false}
             initialData={selectedAthlete}
-            isEditing={isEditingAthlete}
-            setIsEditing={setIsEditing}
+            isEditing={isEditingAthlete} // Pass current editing state
+            setParentIsEditing={setIsEditingAthlete} // Pass the setter to allow form to control parent's editing state
             athleteId={selectedAthlete.id}
             userRole={userRole} // Pass userRole for access control within the form
           />
@@ -1302,7 +1308,7 @@ const AthleteProfiles = ({ db, currentUserId, userRole, showAppToast }) => {
 };
 
 // --- Add/Edit Athlete Form Component ---
-const AddEditAthleteForm = ({ db, currentUserId, onClose, showAppToast, isNew, initialData, isEditing, setIsEditing, athleteId, userRole }) => {
+const AddEditAthleteForm = ({ db, currentUserId, onClose, showAppToast, isNew, initialData, isEditing, setParentIsEditing, athleteId, userRole }) => {
   const [formData, setFormData] = useState(initialData || {
     name: '',
     teams: [],
@@ -1513,7 +1519,10 @@ const AddEditAthleteForm = ({ db, currentUserId, onClose, showAppToast, isNew, i
         const athleteDocRef = doc(db, privateUserDataPath(currentUserId), COLLECTIONS.ATHLETES, athleteId);
         await updateDoc(athleteDocRef, formData);
         showAppToast("Athlete updated successfully!");
-        setIsEditing(false); // Exit edit mode on successful save
+        // Use the passed setParentIsEditing function to update the parent's state
+        if (setParentIsEditing) {
+            setParentIsEditing(false);
+        }
       }
       onClose(); // Close modal after successful operation
     } catch (error) {
@@ -1813,7 +1822,7 @@ const CoachManagement = ({ db, currentUserId, userRole, showAppToast }) => {
   const [coaches, setCoaches] = useState([]);
   const [showAddCoachModal, setShowAddCoachModal] = useState(false);
   const [selectedCoach, setSelectedCoach] = useState(null);
-  const [isEditingCoach, setIsEditingCoach] = useState(false);
+  const [isEditingCoach, setIsEditingCoach] = useState(false); // Correctly defined state for CoachManagement
 
   // Fetch all coaches and listen for real-time updates
   useEffect(() => {
@@ -2154,7 +2163,7 @@ const AddEditCoachForm = ({ db, currentUserId, onClose, showAppToast, isNew, ini
 const CheckinLogs = ({ db, currentUserId, userRole, showAppToast }) => {
   const [historicalLogs, setHistoricalLogs] = useState([]);
   const [selectedLog, setSelectedLog] = useState(null);
-  const [isEditingLog, setIsEditingLog] = useState(false);
+  const [isEditingLog, setIsEditingLog] = useState(false); // Correctly defined state for CheckinLogs
   const [filterAthleteName, setFilterAthleteName] = useState('');
   const [filterCheckinStatus, setFilterCheckinStatus] = useState('All'); // 'All', 'Checked In', 'Missed'
   const [filterCategory, setFilterCategory] = useState('All'); // 'All', 'Team', 'Class'
@@ -2201,12 +2210,12 @@ const CheckinLogs = ({ db, currentUserId, userRole, showAppToast }) => {
 
   const handleOpenLog = (log) => {
     setSelectedLog(log);
-    setIsEditingLog(false);
+    setIsEditingLog(false); // Default to view mode when opening log
   };
 
   const handleCloseLog = () => {
     setSelectedLog(null);
-    setIsEditingLog(false);
+    setIsEditingLog(false); // Ensure edit mode is off when closing
   };
 
   const handleEditLogToggle = () => {
@@ -2282,7 +2291,7 @@ const CheckinLogs = ({ db, currentUserId, userRole, showAppToast }) => {
       );
       if (!isEntityMatch) matches = false;
     } else if (filterCategory !== 'All') { // Only filter by category if entity is 'All'
-      const isCategoryMatch = log.dailyCheckInEvents.some(event =>
+      const isCategoryMatch = log.dailyCheckinEvents.some(event =>
         event.checkInType === filterCategory.toLowerCase()
       );
       if (!isCategoryMatch) matches = false;
@@ -2303,7 +2312,7 @@ const CheckinLogs = ({ db, currentUserId, userRole, showAppToast }) => {
     // For now, I'll interpret 'Missed' as: if an athlete is selected in the filter, and *not* found in the events of this log.
     // This is a simplification due to the complex historical data requirement.
     if (filterCheckinStatus === 'Missed' && filterAthleteName) {
-      const athleteCheckedInThisLog = log.dailyCheckInEvents.some(event =>
+      const athleteCheckedInThisLog = log.dailyCheckinEvents.some(event =>
         event.athleteName.toLowerCase().includes(filterAthleteName.toLowerCase())
       );
       if (athleteCheckedInThisLog) matches = false; // If they are in the log, they are not 'missed' for this log filter
@@ -2315,7 +2324,7 @@ const CheckinLogs = ({ db, currentUserId, userRole, showAppToast }) => {
       if (!athleteCheckedInThisLog) matches = false;
     } else if (filterCheckinStatus === 'Checked In' && !filterAthleteName) {
         // If filter is 'Checked In' but no specific athlete, ensure the log actually has check-ins.
-        if (log.dailyCheckInEvents.length === 0) matches = false;
+        if (log.dailyCheckinEvents.length === 0) matches = false;
     }
 
     return matches;
