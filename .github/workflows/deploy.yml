@@ -43,11 +43,8 @@ jobs:
       - name: Install dependencies
         run: npm install # Install your project's npm dependencies
 
-      - name:Diagnose: Print vite.config.js content
-        # CRUCIAL: Ensure this 'run:' line below has EXACTLY 4 spaces before 'run:'.
-        # No extra characters or lines above this 'run:' on the same indentation level.
-        run: cat vite.config.js
-        # This step prints the contents of vite.config.js to the Actions log for debugging.
+      # Removed the problematic 'Diagnose: Print vite.config.js content' step to fix YAML error.
+      # Its content will not be printed to the logs anymore.
 
       - name: Build React app
         run: npm run build # Run your project's build command, which creates the 'dist' folder
