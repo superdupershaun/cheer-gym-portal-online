@@ -1,0 +1,58 @@
+# This workflow will build a Node.js project and deploy it to GitHub Pages.
+# For more information see: https://docs.github.com/en/actions/publishing-your-build-artifacts-and-pages/getting-started-with-github-pages#publishing-with-a-custom-github-actions-workflow
+
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main # This workflow runs when you push to the 'main' branch
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, skipping runs queued between the start and latest queued.
+# However, for GitHub Pages, concurrency is not required and may lead to issues.
+# concurrency:
+#   group: "pages"
+#   cancel-in-progress: false
+
+jobs:
+  # Build job
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout your repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20 # Use a stable Node.js version, e.g., 20 or 18
+          cache: 'npm' # Cache npm dependencies for faster builds
+
+      - name: Install dependencies
+        run: npm install # Install your project's npm dependencies
+
+      - name: Build React app
+        run: npm run build # Run your project's build command, which creates the 'dist' folder
+
+      - name: Upload production-ready build artifacts for deployment
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist # Specify the directory where your built files are located
+
+  # Deployment job
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build # This job depends on the 'build' job completing successfully
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4 # This action handles the deployment to GitHub Pages
