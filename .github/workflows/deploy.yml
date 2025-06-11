@@ -36,7 +36,7 @@ jobs:
       - name: Build React app
         run: npm install && npm run build # Run npm install again just before build for robustness
 
-      # --- IMPORTANT: NEW STEP TO INLINE CSS (More Robust with awk) ---
+      # --- IMPORTANT: NEW STEP TO INLINE CSS (More Robust) ---
       - name: Inline CSS into index.html
         run: |
           # Find the built CSS file (Vite often outputs a hashed name like index-HASH.css)
@@ -60,12 +60,12 @@ jobs:
 
           INDEX_HTML_PATH="dist/index.html"
           
-          # 1. Remove all <link rel="stylesheet" ...> tags from index.html using sed
+          # 1. Remove all <link rel="stylesheet" ...> tags from index.html
           # This sed command is more generic to catch any variations (hashed, crossorigin, etc.)
           sed -i -E '/<link rel="stylesheet".*href=".*\.css"[^>]*>/d' "$INDEX_HTML_PATH"
 
-          # 2. Insert the CSS content directly into a <style> tag before </head> using awk
-          # Awk is more robust for multi-line insertions and handling special characters.
+          # 2. Insert the CSS content directly into a <style> tag before </head>
+          # Use `sed` to insert the CSS content wrapped in <style> tags before the </head> tag.
           awk -v css="$CSS_CONTENT" '
             /<\/head>/ {
               print "    <style>"

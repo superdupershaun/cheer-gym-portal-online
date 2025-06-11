@@ -5,7 +5,7 @@
 module.exports = {
   plugins: [
     // IMPORTANT: Use the correct, separate PostCSS plugin for Tailwind CSS
-    require('@tailwindcss/postcss'), // This is the key change!
+    require('@tailwindcss/postcss'),
     require('autoprefixer'),
   ],
 };

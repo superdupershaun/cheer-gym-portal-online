@@ -2,7 +2,7 @@
 export default {
   content: [
     "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}", // CRITICAL: This tells Tailwind where your classes are!
+    "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {},

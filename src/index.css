@@ -1,3 +1,9 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* --- IMPORTANT: TEST STYLE --- */
+body {
+  background-color: #ffcccc !important; /* Light red */
+}
+/* --- END TEST STYLE --- */
