@@ -862,7 +862,7 @@ const CoachDashboard = ({ db, currentUserId, userRole, showAppToast }) => {
           {isResetting && (
             <div
               className="absolute inset-0 bg-red-800 opacity-50 z-0 transition-all duration-50"
-              style={{ width: `${progress}%` }}
+              style={{ width: `${resetProgress}%` }} // FIX: Use resetProgress here
             ></div>
           )}
           <span className="relative z-10">
