@@ -8,7 +8,18 @@ import { User, Users, Calendar, Settings, ChevronLeft, CheckCircle2, XCircle, Ba
 
 // --- Global Firebase and App Constants ---
 // Use the Firebase configuration provided by the Canvas environment
-const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+// --- Global Firebase and App Constants ---
+// PLACE YOUR FIREBASE CONFIG HERE:
+const firebaseConfig = {
+  apiKey: "AIzaSyCCS1fFfmH4Y4tXn6Rv7w4baNYrz5VSFLg",
+  authDomain: "gym-check-in-d1bf5.firebaseapp.com",
+  projectId: "gym-check-in-d1bf5",
+  storageBucket: "gym-check-in-d1bf5.firebasestorage.app",
+  messagingSenderId: "667813844333",
+  appId: "1:667813844333:web:84e6746664e0540c933664",
+  measurementId: "G-K7WD5R8DDB"
+};
+// End Firebase config
 
 // Use the app ID provided by the Canvas environment, with a fallback
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
