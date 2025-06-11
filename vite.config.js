@@ -7,12 +7,18 @@ export default defineConfig({
   base: './',
   build: {
     chunkSizeWarningLimit: 1500, // Helps manage bundle size warnings.
-    // FINAL FIX: Ensure CSS is outputted as a single file with a fixed name
-    cssCodeSplit: false, // Prevent CSS splitting
+    cssCodeSplit: false, // Ensure all CSS is bundled into a single file
     rollupOptions: {
       output: {
-        manualChunks: undefined, // Prevent JS code splitting
-        assetFileNames: 'assets/index.css', // Force all CSS to be named 'index.css' in assets
+        manualChunks: undefined, // Prevent JS code splitting if any
+        // Force the main CSS file to be named 'style.css' without a hash
+        assetFileNames: (assetInfo) => {
+          if (assetInfo.name === 'style.css') { // This targets the main CSS output from Vite
+            return 'assets/style.css'; // Consistent path and filename
+          }
+          // For other assets (JS, images, etc.), use default hashed names
+          return 'assets/[name]-[hash][extname]';
+        },
       },
     },
   },
