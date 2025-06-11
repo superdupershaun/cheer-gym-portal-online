@@ -10,20 +10,13 @@ import { User, Users, Calendar, Settings, ChevronLeft, CheckCircle2, XCircle, Ba
 // IMPORTANT: REPLACE THESE WITH YOUR ACTUAL FIREBASE CONFIGURATION.
 // Go to your Firebase Project Settings -> "Your apps" section to find these values.
 const firebaseConfig = {
-  apiKey: "AIzaSyCCS1fFfmH4Y4tXn6Rv7w4baNYrz5VSFLg",
-
+  apiKey: "AIzaSyCCS1fFfmH4Y4tXn6Rv7w4baNYrz5VSFLG",
   authDomain: "gym-check-in-d1bf5.firebaseapp.com",
-
   projectId: "gym-check-in-d1bf5",
-
-  storageBucket: "gym-check-in-d1bf5.firebasestorage.app",
-
+  storageBucket: "gym-check-in-d1bf5.firebase.app",
   messagingSenderId: "667813844333",
-
   appId: "1:667813844333:web:84e6746664e0540c933664",
-
   measurementId: "G-K7WD5R8DDB"
-
 };
 
 // We will use the projectId from your Firebase config as the appId for consistent Firestore paths
@@ -124,6 +117,31 @@ const ToastNotification = ({ message, type, onClose }) => {
     </div>
   );
 };
+
+// NEW: Generic Confirmation Modal Component
+const ConfirmationModal = ({ isOpen, title, message, onConfirm, onCancel, confirmText = 'Confirm', cancelText = 'Cancel' }) => {
+  if (!isOpen) return null;
+  return (
+    <Modal isOpen={isOpen} title={title} onClose={onCancel} showCloseButton={false}>
+      <p className="text-gray-700 mb-6">{message}</p>
+      <div className="flex justify-end space-x-4">
+        <button
+          onClick={onCancel}
+          className="bg-gray-300 text-gray-800 py-2 px-4 rounded-lg font-semibold hover:bg-gray-400 transition"
+        >
+          {cancelText}
+        </button>
+        <button
+          onClick={onConfirm}
+          className="bg-red-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-red-700 transition"
+        >
+          {confirmText}
+        </button>
+      </div>
+    </Modal>
+  );
+};
+
 
 // --- Main Application Component ---
 export default function App() {
@@ -771,10 +789,14 @@ const CoachDashboard = ({ db, currentUserId, userRole, showAppToast }) => {
       showAppToast("App not ready.", 'error');
       return;
     }
-    showAppToast("Resetting daily check-ins...", 'info');
+    showAppToast("Attempting to reset daily check-ins...", 'info');
+    console.log("Attempting to reset daily check-ins...");
     try {
       const currentCheckinsRef = collection(db, publicDataPath, COLLECTIONS.CURRENT_CHECKINS);
+      console.log("Fetching current check-ins for reset...");
       const querySnapshot = await getDocs(currentCheckinsRef);
+      console.log(`Found ${querySnapshot.docs.length} check-ins to process.`);
+
       const checkinEventsToLog = [];
       const batchDelete = [];
 
@@ -784,11 +806,13 @@ const CoachDashboard = ({ db, currentUserId, userRole, showAppToast }) => {
         batchDelete.push(deleteDoc(doc(currentCheckinsRef, docSnap.id)));
       });
 
-      // Execute all deletions
-      await Promise.all(batchDelete);
+      console.log("Executing batch delete for current check-ins...");
+      await Promise.all(batchDelete); // Execute all deletions
+      console.log("Current check-ins successfully deleted.");
 
       // Log to historical records if there were any check-ins
       if (checkinEventsToLog.length > 0) {
+        console.log("Logging to historical records...");
         const historicalLogsRef = collection(db, publicDataPath, COLLECTIONS.HISTORICAL_CHECKIN_LOGS);
         await addDoc(historicalLogsRef, {
           timestamp: new Date().toISOString(),
@@ -801,14 +825,25 @@ const CoachDashboard = ({ db, currentUserId, userRole, showAppToast }) => {
             timestamp
           })), // Remove individual checkin ID
         });
+        console.log("Historical log added successfully.");
+      } else {
+        console.log("No current check-ins to log historically.");
       }
 
       showAppToast("Daily check-ins reset and logged!");
+      console.log("Daily check-ins reset and logged successfully.");
     } catch (error) {
       console.error("Error resetting daily check-ins:", error);
       showAppToast(`Failed to reset: ${error.message}`, 'error');
+    } finally {
+      // Ensure state is reset regardless of success or failure
+      setIsResetting(false);
+      setResetProgress(0);
+      console.log("Reset state cleanup complete.");
     }
   };
+
+  const isAdminUser = userRole === 'admin'; // Explicitly define for disabled prop
 
   return (
     <div className="flex flex-col h-full">
@@ -821,7 +856,7 @@ const CoachDashboard = ({ db, currentUserId, userRole, showAppToast }) => {
           onTouchStart={(e) => { e.preventDefault(); handleResetHoldStart(); }}
           onTouchEnd={handleResetHoldEnd}
           onTouchCancel={handleResetHoldEnd}
-          disabled={userRole !== 'admin'} // Only admin can reset
+          disabled={!isAdminUser} // Only admin can reset
         >
           {isResetting && (
             <div
@@ -832,7 +867,7 @@ const CoachDashboard = ({ db, currentUserId, userRole, showAppToast }) => {
           <span className="relative z-10">
             {isResetting ? `Hold to Reset (${Math.round(resetProgress)}%)` : 'Reset Daily Check-ins'}
           </span>
-          {userRole !== 'admin' && (
+          {!isAdminUser && (
             <span className="absolute inset-0 flex items-center justify-center text-xs bg-gray-500 bg-opacity-75 rounded-full z-20">Admin Only</span>
           )}
         </button>
@@ -978,15 +1013,15 @@ const AttendanceView = ({ db, currentUserId, showAppToast }) => {
         <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 w-full max-w-md">
           <button
             onClick={() => setSelectedCategory('Team')}
-            className="flex-1 bg-indigo-500 text-white py-3 px-6 rounded-lg text-lg font-semibold shadow-md hover:bg-indigo-600 transition"
+            className="flex-1 bg-indigo-500 text-white py-4 px-6 rounded-lg text-xl font-semibold shadow-lg hover:bg-indigo-600 transition duration-300 ease-in-out transform hover:scale-105"
           >
-            Team
+            <Users className="inline-block mr-2" size={24} /> Team
           </button>
           <button
             onClick={() => setSelectedCategory('Class')}
-            className="flex-1 bg-purple-500 text-white py-3 px-6 rounded-lg text-lg font-semibold shadow-md hover:bg-purple-600 transition"
+            className="flex-1 bg-purple-500 text-white py-4 px-6 rounded-lg text-xl font-semibold shadow-lg hover:bg-purple-600 transition duration-300 ease-in-out transform hover:scale-105"
           >
-            Class
+            <Calendar className="inline-block mr-2" size={24} /> Class
           </button>
         </div>
       </div>
@@ -996,23 +1031,23 @@ const AttendanceView = ({ db, currentUserId, showAppToast }) => {
   if (!selectedEntity) {
     const entities = selectedCategory === 'Team' ? teams : classes;
     return (
-      <div className="flex flex-col h-full p-4">
+      <div className="flex flex-col items-center h-full p-4">
         <button
           onClick={() => setSelectedCategory(null)}
-          className="self-start mb-4 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg flex items-center hover:bg-gray-300 transition"
+          className="self-start mb-4 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg flex items-center hover:bg-gray-300 transition duration-200"
         >
           <ChevronLeft size={20} className="mr-2" /> Back
         </button>
-        <h3 className="text-2xl font-semibold text-center text-gray-800 mb-6">Select {selectedCategory} to View</h3>
+        <h3 className="text-2xl font-semibold text-center text-gray-800 mb-6">Select {selectedCategory}</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full max-w-3xl">
           {entities.length === 0 ? (
-            <p className="text-center text-gray-600 col-span-full">No {selectedCategory.toLowerCase()}es found.</p>
+            <p className="text-center text-gray-600 col-span-full">No {selectedCategory.toLowerCase()}es available.</p>
           ) : (
             entities.map(entity => (
               <button
                 key={entity}
                 onClick={() => setSelectedEntity(entity)}
-                className="bg-white border border-gray-200 rounded-lg p-3 text-center font-medium shadow hover:shadow-md transition"
+                className="bg-white border border-gray-200 rounded-lg p-4 text-center font-medium shadow hover:shadow-md transition duration-200 transform hover:scale-105 text-lg"
               >
                 {entity}
               </button>
@@ -1027,7 +1062,7 @@ const AttendanceView = ({ db, currentUserId, showAppToast }) => {
     <div className="flex flex-col h-full p-4">
       <button
         onClick={() => setSelectedEntity(null)}
-        className="self-start mb-4 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg flex items-center hover:bg-gray-300 transition"
+        className="self-start mb-4 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg flex items-center hover:bg-gray-300 transition duration-200"
       >
         <ChevronLeft size={20} className="mr-2" /> Back to {selectedCategory} Selection
       </button>
@@ -1103,6 +1138,8 @@ const AthleteProfiles = ({ db, currentUserId, userRole, showAppToast }) => {
   const [showAddAthleteModal, setShowAddAthleteModal] = useState(false);
   const [selectedAthlete, setSelectedAthlete] = useState(null);
   const [isEditingAthlete, setIsEditingAthlete] = useState(false); // Correctly defined state for AthleteProfiles
+  const [showDeleteAthleteConfirm, setShowDeleteAthleteConfirm] = useState(false); // NEW: State for confirmation modal
+  const [athleteToDelete, setAthleteToDelete] = useState(null); // NEW: Store athlete ID for deletion
 
   // Fetch all athletes and listen for real-time updates
   useEffect(() => {
@@ -1126,7 +1163,8 @@ const AthleteProfiles = ({ db, currentUserId, userRole, showAppToast }) => {
   );
 
   const handleApproveAthlete = async (athleteId) => {
-    if (!db || !currentUserId || userRole !== 'admin') {
+    const canApprove = userRole === 'admin';
+    if (!db || !currentUserId || !canApprove) {
       showAppToast("Permission denied. Only Admin can approve athletes.", 'error');
       return;
     }
@@ -1141,26 +1179,34 @@ const AthleteProfiles = ({ db, currentUserId, userRole, showAppToast }) => {
     }
   };
 
-  const handleDeleteAthlete = async (athleteId) => {
-    if (!db || !currentUserId || userRole !== 'admin') {
-      showAppToast("Permission denied. Only Admin can delete athletes.", 'error');
-      return;
-    }
-    // Changed to a custom modal later, for now keeping window.confirm
-    if (!window.confirm("Are you sure you want to delete this athlete? This action cannot be undone.")) {
+  // NEW: Function to open confirmation modal
+  const confirmDeleteAthlete = (athleteId) => {
+    setAthleteToDelete(athleteId);
+    setShowDeleteAthleteConfirm(true);
+  };
+
+  // NEW: Actual delete logic, called from confirmation modal
+  const executeDeleteAthlete = async () => {
+    const canDelete = userRole === 'admin';
+    if (!db || !currentUserId || !canDelete || !athleteToDelete) {
+      showAppToast("Permission denied or athlete not selected.", 'error');
       return;
     }
     showAppToast("Deleting athlete...", 'info');
     try {
-      const athleteDocRef = doc(db, privateUserDataPath(currentUserId), COLLECTIONS.ATHLETES, athleteId);
+      const athleteDocRef = doc(db, privateUserDataPath(currentUserId), COLLECTIONS.ATHLETES, athleteToDelete);
       await deleteDoc(athleteDocRef);
       showAppToast("Athlete deleted successfully!");
     }
     catch (error) {
       console.error("Error deleting athlete:", error);
       showAppToast(`Failed to delete: ${error.message}`, 'error');
+    } finally {
+      setShowDeleteAthleteConfirm(false);
+      setAthleteToDelete(null);
     }
   };
+
 
   const handleOpenProfile = (athlete) => {
     setSelectedAthlete(athlete);
@@ -1173,13 +1219,15 @@ const AthleteProfiles = ({ db, currentUserId, userRole, showAppToast }) => {
   };
 
   const handleEditProfileToggle = () => {
-    if (userRole === 'admin') {
+    const canEdit = userRole === 'admin';
+    if (canEdit) {
       setIsEditingAthlete(prev => !prev);
     } else {
       showAppToast("Only Admin can edit athlete profiles.", 'error');
     }
   };
 
+  const canAddAthlete = userRole === 'admin'; // For the 'Add New Athlete' button
 
   return (
     <div className="p-4">
@@ -1196,8 +1244,10 @@ const AthleteProfiles = ({ db, currentUserId, userRole, showAppToast }) => {
         <button
           onClick={() => setShowAddAthleteModal(true)}
           className="bg-indigo-600 text-white py-2 px-5 rounded-lg font-semibold shadow-md hover:bg-indigo-700 transition duration-300 transform hover:scale-105 flex items-center"
+          disabled={!canAddAthlete}
         >
           <Plus size={20} className="mr-2" /> Add New Athlete
+          {!canAddAthlete && <span className="ml-2 text-xs opacity-75"> (Admin Only)</span>}
         </button>
       </div>
 
@@ -1221,15 +1271,15 @@ const AthleteProfiles = ({ db, currentUserId, userRole, showAppToast }) => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <button
                         onClick={() => handleApproveAthlete(athlete.id)}
-                        className={`text-green-600 hover:text-green-900 mr-3 ${userRole !== 'admin' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        disabled={userRole !== 'admin'}
+                        className={`text-green-600 hover:text-green-900 mr-3 ${!canAddAthlete ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        disabled={!canAddAthlete}
                       >
                         Approve
                       </button>
                       <button
-                        onClick={() => handleDeleteAthlete(athlete.id)}
-                        className={`text-red-600 hover:text-red-900 ${userRole !== 'admin' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        disabled={userRole !== 'admin'}
+                        onClick={() => confirmDeleteAthlete(athlete.id)}
+                        className={`text-red-600 hover:text-red-900 ${!canAddAthlete ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        disabled={!canAddAthlete}
                       >
                         Delete
                       </button>
@@ -1288,9 +1338,9 @@ const AthleteProfiles = ({ db, currentUserId, userRole, showAppToast }) => {
               onClick={handleEditProfileToggle}
               className={`py-2 px-4 rounded-lg flex items-center transition duration-200
                 ${isEditingAthlete ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-indigo-500 text-white hover:bg-indigo-600'}
-                ${userRole !== 'admin' ? 'opacity-50 cursor-not-allowed' : ''}
+                ${!canAddAthlete ? 'opacity-50 cursor-not-allowed' : ''}
               `}
-              disabled={userRole !== 'admin'}
+              disabled={!canAddAthlete}
             >
               {isEditingAthlete ? <X size={18} className="mr-2" /> : <Edit size={18} className="mr-2" />}
               {isEditingAthlete ? 'Cancel Edit' : 'Edit Profile'}
@@ -1310,6 +1360,16 @@ const AthleteProfiles = ({ db, currentUserId, userRole, showAppToast }) => {
           />
         </Modal>
       )}
+
+      {/* NEW: Confirmation Modal for Athlete Deletion */}
+      <ConfirmationModal
+        isOpen={showDeleteAthleteConfirm}
+        title="Confirm Deletion"
+        message="Are you sure you want to delete this athlete? This action cannot be undone."
+        onConfirm={executeDeleteAthlete}
+        onCancel={() => setShowDeleteAthleteConfirm(false)}
+        confirmText="Delete"
+      />
     </div>
   );
 };
@@ -1343,6 +1403,7 @@ const AddEditAthleteForm = ({ db, currentUserId, onClose, showAppToast, isNew, i
   const canvasRef = useRef(null);
 
   const [isLoading, setIsLoading] = useState(false);
+  const canEditForm = userRole === 'admin'; // For form fields inside AddEditAthleteForm
 
   // Fetch all available teams and classes for multi-select
   useEffect(() => {
@@ -1518,7 +1579,8 @@ const AddEditAthleteForm = ({ db, currentUserId, onClose, showAppToast, isNew, i
         showAppToast("Athlete added successfully!");
       } else {
         // Update existing athlete
-        if (userRole !== 'admin') {
+        const canSave = userRole === 'admin';
+        if (!canSave) {
           showAppToast("Permission denied. Only Admin can save edits.", 'error');
           setIsLoading(false);
           return;
@@ -1606,7 +1668,7 @@ const AddEditAthleteForm = ({ db, currentUserId, onClose, showAppToast, isNew, i
       <div>
         <label htmlFor="name" className="block text-sm font-medium text-gray-700">Athlete Name</label>
         <input type="text" name="name" value={formData.name} onChange={handleChange} required
-          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" disabled={!isFormEditable} />
+          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" disabled={!isFormEditable || !canEditForm} />
       </div>
 
       {isNew && (
@@ -1633,7 +1695,7 @@ const AddEditAthleteForm = ({ db, currentUserId, onClose, showAppToast, isNew, i
                   checked={formData.teams.includes(team)}
                   onChange={handleChange}
                   className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
-                  disabled={!isFormEditable}
+                  disabled={!isFormEditable || !canEditForm}
                 />
                 <label htmlFor={`team-${team}`} className="ml-2 text-sm text-gray-900">{team}</label>
               </div>
@@ -1655,7 +1717,7 @@ const AddEditAthleteForm = ({ db, currentUserId, onClose, showAppToast, isNew, i
                   checked={formData.classes.includes(cls)}
                   onChange={handleChange}
                   className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
-                  disabled={!isFormEditable}
+                  disabled={!isFormEditable || !canEditForm}
                 />
                 <label htmlFor={`class-${cls}`} className="ml-2 text-sm text-gray-900">{cls}</label>
               </div>
@@ -1671,29 +1733,29 @@ const AddEditAthleteForm = ({ db, currentUserId, onClose, showAppToast, isNew, i
         <div>
           <label htmlFor="parentName" className="block text-sm font-medium text-gray-700">Parent/Guardian Name</label>
           <input type="text" name="parentName" value={formData.parentName} onChange={handleChange}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" disabled={!isFormEditable} />
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" disabled={!isFormEditable || !canEditForm} />
         </div>
         <div>
           <label htmlFor="parentPhone" className="block text-sm font-medium text-gray-700">Parent Phone</label>
           <input type="tel" name="parentPhone" value={formData.parentPhone} onChange={handleChange}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" disabled={!isFormEditable} />
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" disabled={!isFormEditable || !canEditForm} />
         </div>
         <div>
           <label htmlFor="parentEmail" className="block text-sm font-medium text-gray-700">Parent Email</label>
           <input type="email" name="parentEmail" value={formData.parentEmail} onChange={handleChange}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" disabled={!isFormEditable} />
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" disabled={!isFormEditable || !canEditForm} />
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
         <div>
           <label htmlFor="emergencyContactName" className="block text-sm font-medium text-gray-700">Emergency Contact Name</label>
           <input type="text" name="emergencyContactName" value={formData.emergencyContactName} onChange={handleChange}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" disabled={!isFormEditable} />
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" disabled={!isFormEditable || !canEditForm} />
         </div>
         <div>
           <label htmlFor="emergencyContactPhone" className="block text-sm font-medium text-gray-700">Emergency Contact Phone</label>
           <input type="tel" name="emergencyContactPhone" value={formData.emergencyContactPhone} onChange={handleChange}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" disabled={!isFormEditable} />
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" disabled={!isFormEditable || !canEditForm} />
         </div>
       </div>
 
@@ -1703,7 +1765,7 @@ const AddEditAthleteForm = ({ db, currentUserId, onClose, showAppToast, isNew, i
         {formData.skills.map((skill, index) => (
           <div key={index} className="flex items-center space-x-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
             <span className="font-medium text-gray-900 flex-1">{skill.name}</span>
-            {isFormEditable ? (
+            {isFormEditable && canEditForm ? (
               <select
                 value={skill.status}
                 onChange={(e) => handleUpdateSkillStatus(index, e.target.value)}
@@ -1722,14 +1784,14 @@ const AddEditAthleteForm = ({ db, currentUserId, onClose, showAppToast, isNew, i
                 'bg-gray-100 text-gray-800'
               }`}>{skill.status}</span>
             )}
-            {isFormEditable && (
+            {isFormEditable && canEditForm && (
               <button type="button" onClick={() => handleRemoveSkill(index)} className="text-red-500 hover:text-red-700">
                 <Trash2 size={16} />
               </button>
             )}
           </div>
         ))}
-        {isFormEditable && (
+        {isFormEditable && canEditForm && (
           <div className="flex space-x-2 mt-4">
             <input
               type="text"
@@ -1764,7 +1826,7 @@ const AddEditAthleteForm = ({ db, currentUserId, onClose, showAppToast, isNew, i
         rows="3"
         className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
         placeholder="Notes on areas for improvement..."
-        disabled={!isFormEditable}
+        disabled={!isFormEditable || !canEditForm}
       ></textarea>
 
       {/* Coach Notes */}
@@ -1776,14 +1838,14 @@ const AddEditAthleteForm = ({ db, currentUserId, onClose, showAppToast, isNew, i
               <span className="font-medium">{note.coachName}</span> on {new Date(note.timestamp).toLocaleDateString()} at {new Date(note.timestamp).toLocaleTimeString()}
             </p>
             <p className="text-gray-800 mt-1">{note.note}</p>
-            {isFormEditable && (
+            {isFormEditable && canEditForm && (
               <button type="button" onClick={() => handleRemoveCoachNote(index)} className="text-red-500 hover:text-red-700 text-sm mt-2">
                 Remove Note
               </button>
             )}
           </div>
         ))}
-        {isFormEditable && (
+        {isFormEditable && canEditForm && (
           <div className="flex space-x-2 mt-4">
             <textarea
               value={newCoachNote}
@@ -1813,7 +1875,7 @@ const AddEditAthleteForm = ({ db, currentUserId, onClose, showAppToast, isNew, i
           <button
             type="submit"
             className="bg-green-600 text-white py-2 px-5 rounded-lg font-semibold shadow-md hover:bg-green-700 transition"
-            disabled={isLoading || (isEditing && userRole !== 'admin')} // Only admin can save edits
+            disabled={isLoading || !canEditForm} // Only admin can save edits
           >
             {isLoading ? 'Saving...' : (isNew ? 'Add Athlete' : 'Save Changes')}
           </button>
@@ -1830,6 +1892,8 @@ const CoachManagement = ({ db, currentUserId, userRole, showAppToast }) => {
   const [showAddCoachModal, setShowAddCoachModal] = useState(false);
   const [selectedCoach, setSelectedCoach] = useState(null);
   const [isEditingCoach, setIsEditingCoach] = useState(false); // Correctly defined state for CoachManagement
+  const [showDeleteCoachConfirm, setShowDeleteCoachConfirm] = useState(false); // NEW: State for confirmation modal
+  const [coachToDelete, setCoachToDelete] = useState(null); // NEW: Store coach ID for deletion
 
   // Fetch all coaches and listen for real-time updates
   useEffect(() => {
@@ -1846,7 +1910,8 @@ const CoachManagement = ({ db, currentUserId, userRole, showAppToast }) => {
   }, [db, currentUserId, showAppToast]);
 
   const handleApproveCoach = async (coachId) => {
-    if (userRole !== 'admin') {
+    const canApprove = userRole === 'admin';
+    if (!canApprove) {
       showAppToast("Permission denied. Only Admin can approve coaches.", 'error');
       return;
     }
@@ -1861,27 +1926,36 @@ const CoachManagement = ({ db, currentUserId, userRole, showAppToast }) => {
     }
   };
 
-  const handleDeleteCoach = async (coachId) => {
-    if (userRole !== 'admin') {
-      showAppToast("Permission denied. Only Admin can delete coaches.", 'error');
-      return;
-    }
-    if (!window.confirm("Are you sure you want to delete this coach? This action cannot be undone.")) {
+  // NEW: Function to open confirmation modal
+  const confirmDeleteCoach = (coachId) => {
+    setCoachToDelete(coachId);
+    setShowDeleteCoachConfirm(true);
+  };
+
+  // NEW: Actual delete logic, called from confirmation modal
+  const executeDeleteCoach = async () => {
+    const canDelete = userRole === 'admin';
+    if (!canDelete || !db || !currentUserId || !coachToDelete) {
+      showAppToast("Permission denied or coach not selected.", 'error');
       return;
     }
     showAppToast("Deleting coach...", 'info');
     try {
-      const coachDocRef = doc(db, privateUserDataPath(currentUserId), COLLECTIONS.COACHES, coachId);
+      const coachDocRef = doc(db, privateUserDataPath(currentUserId), COLLECTIONS.COACHES, coachToDelete);
       await deleteDoc(coachDocRef);
       showAppToast("Coach deleted successfully!");
     } catch (error) {
       console.error("Error deleting coach:", error);
       showAppToast(`Failed to delete: ${error.message}`, 'error');
+    } finally {
+      setShowDeleteCoachConfirm(false);
+      setCoachToDelete(null);
     }
   };
 
   const handleOpenEditCoach = (coach) => {
-    if (userRole === 'admin') {
+    const canEdit = userRole === 'admin';
+    if (canEdit) {
       setSelectedCoach(coach);
       setIsEditingCoach(true);
     } else {
@@ -1894,6 +1968,8 @@ const CoachManagement = ({ db, currentUserId, userRole, showAppToast }) => {
     setIsEditingCoach(false);
   };
 
+  const canManageCoaches = userRole === 'admin'; // For general coach management actions
+
   return (
     <div className="p-4">
       <h3 className="text-2xl font-bold text-center text-indigo-700 mb-6">Coach Management</h3>
@@ -1902,10 +1978,10 @@ const CoachManagement = ({ db, currentUserId, userRole, showAppToast }) => {
         <button
           onClick={() => setShowAddCoachModal(true)}
           className="bg-indigo-600 text-white py-2 px-5 rounded-lg font-semibold shadow-md hover:bg-indigo-700 transition duration-300 transform hover:scale-105 flex items-center"
-          disabled={userRole !== 'admin'}
+          disabled={!canManageCoaches}
         >
           <Plus size={20} className="mr-2" /> Add New Coach
-          {userRole !== 'admin' && <span className="ml-2 text-xs opacity-75"> (Admin Only)</span>}
+          {!canManageCoaches && <span className="ml-2 text-xs opacity-75"> (Admin Only)</span>}
         </button>
       </div>
 
@@ -1954,23 +2030,23 @@ const CoachManagement = ({ db, currentUserId, userRole, showAppToast }) => {
                     {!coach.isApproved && (
                       <button
                         onClick={() => handleApproveCoach(coach.id)}
-                        className={`text-green-600 hover:text-green-900 mr-3 ${userRole !== 'admin' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        disabled={userRole !== 'admin'}
+                        className={`text-green-600 hover:text-green-900 mr-3 ${!canManageCoaches ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        disabled={!canManageCoaches}
                       >
                         Approve
                       </button>
                     )}
                     <button
                       onClick={() => handleOpenEditCoach(coach)}
-                      className={`text-indigo-600 hover:text-indigo-900 mr-3 ${userRole !== 'admin' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      disabled={userRole !== 'admin'}
+                      className={`text-indigo-600 hover:text-indigo-900 mr-3 ${!canManageCoaches ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      disabled={!canManageCoaches}
                     >
                       Edit
                     </button>
                     <button
-                      onClick={() => handleDeleteCoach(coach.id)}
-                      className={`text-red-600 hover:text-red-900 ${userRole !== 'admin' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      disabled={userRole !== 'admin'}
+                      onClick={() => confirmDeleteCoach(coach.id)}
+                      className={`text-red-600 hover:text-red-900 ${!canManageCoaches ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      disabled={!canManageCoaches}
                     >
                       Delete
                     </button>
@@ -1993,6 +2069,16 @@ const CoachManagement = ({ db, currentUserId, userRole, showAppToast }) => {
           userRole={userRole}
         />
       </Modal>
+
+      {/* NEW: Confirmation Modal for Coach Deletion */}
+      <ConfirmationModal
+        isOpen={showDeleteCoachConfirm}
+        title="Confirm Deletion"
+        message="Are you sure you want to delete this coach? This action cannot be undone."
+        onConfirm={executeDeleteCoach}
+        onCancel={() => setShowDeleteCoachConfirm(false)}
+        confirmText="Delete"
+      />
     </div>
   );
 };
@@ -2011,6 +2097,7 @@ const AddEditCoachForm = ({ db, currentUserId, onClose, showAppToast, isNew, ini
   const [allTeams, setAllTeams] = useState([]);
   const [allClasses, setAllClasses] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const canEditCoachForm = userRole === 'admin';
 
   // Fetch all available teams and classes for multi-select
   useEffect(() => {
@@ -2053,7 +2140,7 @@ const AddEditCoachForm = ({ db, currentUserId, onClose, showAppToast, isNew, ini
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (userRole !== 'admin') {
+    if (!canEditCoachForm) {
       showAppToast("Permission denied. Only Admin can add/edit coaches.", 'error');
       return;
     }
@@ -2069,7 +2156,8 @@ const AddEditCoachForm = ({ db, currentUserId, onClose, showAppToast, isNew, ini
         showAppToast("Coach updated successfully!");
       }
       onClose();
-    } catch (error) {
+    }
+    catch (error) {
       console.error("Error saving coach:", error);
       showAppToast(`Failed to save coach: ${error.message}`, 'error');
     } finally {
@@ -2082,22 +2170,22 @@ const AddEditCoachForm = ({ db, currentUserId, onClose, showAppToast, isNew, ini
       <div>
         <label htmlFor="name" className="block text-sm font-medium text-gray-700">Coach Name</label>
         <input type="text" name="name" value={formData.name} onChange={handleChange} required
-          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" disabled={!canEditCoachForm} />
       </div>
       <div>
         <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
         <input type="email" name="email" value={formData.email} onChange={handleChange}
-          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" disabled={!canEditCoachForm} />
       </div>
       <div>
         <label htmlFor="phone" className="block text-sm font-medium text-gray-700">Phone</label>
         <input type="tel" name="phone" value={formData.phone} onChange={handleChange}
-          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" disabled={!canEditCoachForm} />
       </div>
       <div>
         <label htmlFor="passcode" className="block text-sm font-medium text-gray-700">4-digit Passcode</label>
         <input type="text" name="passcode" value={formData.passcode} onChange={handleChange} required maxLength="4" pattern="\d{4}"
-          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" disabled={!canEditCoachForm} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2115,6 +2203,7 @@ const AddEditCoachForm = ({ db, currentUserId, onClose, showAppToast, isNew, ini
                   checked={formData.teams.includes(team)}
                   onChange={handleChange}
                   className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
+                  disabled={!canEditCoachForm}
                 />
                 <label htmlFor={`coach-team-${team}`} className="ml-2 text-sm text-gray-900">{team}</label>
               </div>
@@ -2136,6 +2225,7 @@ const AddEditCoachForm = ({ db, currentUserId, onClose, showAppToast, isNew, ini
                   checked={formData.classes.includes(cls)}
                   onChange={handleChange}
                   className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
+                  disabled={!canEditCoachForm}
                 />
                 <label htmlFor={`coach-class-${cls}`} className="ml-2 text-sm text-gray-900">{cls}</label>
               </div>
@@ -2157,7 +2247,7 @@ const AddEditCoachForm = ({ db, currentUserId, onClose, showAppToast, isNew, ini
         <button
           type="submit"
           className="bg-green-600 text-white py-2 px-5 rounded-lg font-semibold shadow-md hover:bg-green-700 transition"
-          disabled={isLoading}
+          disabled={isLoading || !canEditCoachForm}
         >
           {isLoading ? 'Saving...' : (isNew ? 'Add Coach' : 'Save Changes')}
         </button>
@@ -2226,7 +2316,8 @@ const CheckinLogs = ({ db, currentUserId, userRole, showAppToast }) => {
   };
 
   const handleEditLogToggle = () => {
-    if (userRole === 'admin') {
+    const canEdit = userRole === 'admin';
+    if (canEdit) {
       setIsEditingLog(prev => !prev);
     } else {
       showAppToast("Only Admin can edit check-in logs.", 'error');
@@ -2234,7 +2325,8 @@ const CheckinLogs = ({ db, currentUserId, userRole, showAppToast }) => {
   };
 
   const handleRemoveCheckinEvent = (logIndex, eventIndex) => {
-    if (userRole !== 'admin') {
+    const canEdit = userRole === 'admin';
+    if (!canEdit) {
       showAppToast("Permission denied. Only Admin can edit logs.", 'error');
       return;
     }
@@ -2244,7 +2336,8 @@ const CheckinLogs = ({ db, currentUserId, userRole, showAppToast }) => {
   };
 
   const handleAddCheckinEvent = async (logId, athleteId, category, entity, timestampStr) => {
-    if (userRole !== 'admin') {
+    const canEdit = userRole === 'admin';
+    if (!canEdit) {
       showAppToast("Permission denied. Only Admin can edit logs.", 'error');
       return;
     }
@@ -2268,7 +2361,8 @@ const CheckinLogs = ({ db, currentUserId, userRole, showAppToast }) => {
   };
 
   const handleSaveLogEdits = async () => {
-    if (userRole !== 'admin') {
+    const canSave = userRole === 'admin';
+    if (!canSave) {
       showAppToast("Permission denied. Only Admin can save log edits.", 'error');
       return;
     }
@@ -2337,6 +2431,7 @@ const CheckinLogs = ({ db, currentUserId, userRole, showAppToast }) => {
     return matches;
   });
 
+  const canEditLog = userRole === 'admin';
 
   return (
     <div className="p-4">
@@ -2366,8 +2461,10 @@ const CheckinLogs = ({ db, currentUserId, userRole, showAppToast }) => {
             <option value="All">All</option>
             <option value="Checked In">Checked In</option>
             {/* The "Missed" filter logic would be very complex and require external context (full roster of that day).
-                For now, it's a simplified check based on presence in this log entry. */}
+                For now, I'll interpret 'Missed' as: if an athlete is selected in the filter, and *not* found in the events of this log.
+                This is a simplification due to the complex historical data requirement.
             <option value="Missed">Missed (requires athlete name filter)</option>
+            */}
           </select>
         </div>
         <div>
@@ -2393,7 +2490,7 @@ const CheckinLogs = ({ db, currentUserId, userRole, showAppToast }) => {
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
             >
               <option value="All">All {filterCategory}s</option>
-              {(filterCategory === 'Team' ? allTeams : allClasses).map(ent => (
+              {(category === 'Team' ? allTeams : allClasses).map(ent => (
                 <option key={ent} value={ent}>{ent}</option>
               ))}
             </select>
@@ -2449,9 +2546,9 @@ const CheckinLogs = ({ db, currentUserId, userRole, showAppToast }) => {
               onClick={handleEditLogToggle}
               className={`py-2 px-4 rounded-lg flex items-center transition duration-200
                 ${isEditingLog ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-indigo-500 text-white hover:bg-indigo-600'}
-                ${userRole !== 'admin' ? 'opacity-50 cursor-not-allowed' : ''}
+                ${!canEditLog ? 'opacity-50 cursor-not-allowed' : ''}
               `}
-              disabled={userRole !== 'admin'}
+              disabled={!canEditLog}
             >
               {isEditingLog ? <X size={18} className="mr-2" /> : <Edit size={18} className="mr-2" />}
               {isEditingLog ? 'Cancel Edit' : 'Edit Log'}
@@ -2487,6 +2584,7 @@ const CheckinLogs = ({ db, currentUserId, userRole, showAppToast }) => {
                             <button
                               onClick={() => handleRemoveCheckinEvent(selectedLog.id, index)}
                               className="text-red-600 hover:text-red-900"
+                              disabled={!canEditLog}
                             >
                               Remove
                             </button>
@@ -2523,6 +2621,7 @@ const CheckinLogs = ({ db, currentUserId, userRole, showAppToast }) => {
                   type="button"
                   onClick={handleSaveLogEdits}
                   className="bg-green-600 text-white py-2 px-5 rounded-lg font-semibold shadow-md hover:bg-green-700 transition"
+                  disabled={!canEditLog}
                 >
                   Save Changes
                 </button>
