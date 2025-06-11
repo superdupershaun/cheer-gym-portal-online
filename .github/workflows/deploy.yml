@@ -36,18 +36,13 @@ jobs:
       - name: Build React app
         run: npm install && npm run build # Run npm install again just before build for robustness
 
-      # --- IMPORTANT: NEW STEP TO INLINE CSS (More Robust) ---
+      # --- IMPORTANT: NEW STEP TO INLINE CSS (More Robust Sed Commands) ---
       - name: Inline CSS into index.html
         run: |
           # Find the built CSS file (Vite often outputs a hashed name like index-HASH.css)
-          # Use `find` to get the actual path to the main CSS file
-          CSS_FILE_PATH=$(find dist/assets -name "index-*.css" | head -n 1) # Catches any hashed CSS file
+          # Use `find` to get the actual path to the main CSS file, allowing for either 'index-' or 'style' naming
+          CSS_FILE_PATH=$(find dist/assets -name "index-*.css" -o -name "style.css" | head -n 1)
           
-          # Fallback for static style.css name if that's preferred or vite config changes
-          if [ -z "$CSS_FILE_PATH" ] && [ -f "dist/assets/style.css" ]; then
-            CSS_FILE_PATH="dist/assets/style.css"
-          fi
-
           # Check if the CSS file exists and has content
           if [ ! -f "$CSS_FILE_PATH" ] || [ ! -s "$CSS_FILE_PATH" ]; then
             echo "Error: CSS file ($CSS_FILE_PATH) not found or is empty after build."
@@ -56,16 +51,18 @@ jobs:
           fi
 
           # Read the content of the CSS file
-          CSS_CONTENT=$(cat "$CSS_FILE_PATH")
+          # Use `awk` to join lines and `tr` to escape newlines for sed safely
+          CSS_CONTENT=$(cat "$CSS_FILE_PATH" | awk '{printf "%s\\n", $0}' | sed 's/[&/\]/\\&/g' | tr -d '\n')
 
           INDEX_HTML_PATH="dist/index.html"
           
-          # 1. Remove all <link rel="stylesheet" ...> tags from index.html
-          # This sed command is more generic to catch any variations (hashed, crossorigin, etc.)
-          sed -i -E '/<link rel="stylesheet".*href=".*\.css"[^>]*>/d' "$INDEX_HTML_PATH"
+          # 1. Remove all <link rel="stylesheet" ...> tags from index.html using basic regex
+          # This sed command targets standard <link> tags containing .css in their href.
+          # It's less prone to -E errors.
+          sed -i '/<link[[:space:]]\+rel="stylesheet"[^>]*href="[^"]*\.css"[^>]*>/d' "$INDEX_HTML_PATH"
 
           # 2. Insert the CSS content directly into a <style> tag before </head>
-          # Use `sed` to insert the CSS content wrapped in <style> tags before the </head> tag.
+          # Ensure CSS_CONTENT is properly escaped for sed (done above with sed 's/[&/\]/\\&/g')
           sed -i "s|</head>|<style>${CSS_CONTENT}</style>\n</head>|g" "$INDEX_HTML_PATH"
 
           echo "CSS inlined into $INDEX_HTML_PATH. Check the modified HTML:"
