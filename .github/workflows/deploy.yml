@@ -15,7 +15,6 @@ permissions:
   id-token: write
 
 # Allow only one concurrent deployment, skipping runs queued between the start and latest queued.
-# However, for GitHub Pages, concurrency is not required and may lead to issues.
 # concurrency:
 #   group: "pages"
 #   cancel-in-progress: false
@@ -31,23 +30,21 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20 # Use a stable Node.js version, e.g., 20 or 18
+          node-version: 20 # Using Node.js 20, consistent with Codespaces
           cache: 'npm' # Cache npm dependencies for faster builds
 
-      - name: Clean build environment (remove node_modules and dist)
+      - name: Clean install and build
         run: |
+          # Ensure a completely fresh start by removing previous installs and build outputs
           rm -rf node_modules
+          rm -f package-lock.json
           rm -rf dist
-        # Important: This ensures a completely fresh installation and build each time.
 
-      - name: Install dependencies
-        run: npm install # Install your project's npm dependencies
+          # Install dependencies fresh
+          npm install
 
-      # Removed the problematic 'Diagnose: Print vite.config.js content' step to fix YAML error.
-      # Its content will not be printed to the logs anymore.
-
-      - name: Build React app
-        run: npm run build # Run your project's build command, which creates the 'dist' folder
+          # Build the React application for production
+          npm run build
 
       - name: Upload production-ready build artifacts for deployment
         uses: actions/upload-pages-artifact@v3
