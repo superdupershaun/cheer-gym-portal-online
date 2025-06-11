@@ -33,18 +33,18 @@ jobs:
           node-version: 20 # Using Node.js 20, consistent with Codespaces
           cache: 'npm' # Cache npm dependencies for faster builds
 
-      - name: Clean install and build
+      - name: Clean build environment (remove node_modules and dist)
         run: |
-          # Ensure a completely fresh start by removing previous installs and build outputs
+          # Important: Remove node_modules and dist for a fresh build each time
           rm -rf node_modules
-          rm -f package-lock.json
           rm -rf dist
+          # Removed: rm -f package-lock.json -> We want this file to be present and committed
 
-          # Install dependencies fresh
-          npm install
+      - name: Install dependencies
+        run: npm install # Install your project's npm dependencies (will generate package-lock.json if not present)
 
-          # Build the React application for production
-          npm run build
+      - name: Build React app
+        run: npm run build # Run your project's build command, which creates the 'dist' folder
 
       - name: Upload production-ready build artifacts for deployment
         uses: actions/upload-pages-artifact@v3
