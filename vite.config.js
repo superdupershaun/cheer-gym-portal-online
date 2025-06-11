@@ -7,27 +7,13 @@ export default defineConfig({
   base: './',
   build: {
     chunkSizeWarningLimit: 1500, // Helps manage bundle size warnings.
-    // FINAL FIX: Force CSS to be inlined directly into index.html
+    // FINAL FIX: Ensure CSS is outputted as a single file with a fixed name
+    cssCodeSplit: false, // Prevent CSS splitting
     rollupOptions: {
       output: {
-        // Ensure all CSS is bundled into a single chunk
-        manualChunks: undefined,
-        // This function forces CSS to be inlined by returning false for external assets
-        // (Vite's default behavior might externalize CSS even with cssCodeSplit: false)
-        assetFileNames: (assetInfo) => {
-            if (assetInfo.name.endsWith('.css')) {
-                // Return 'assets/index.css' to ensure it's a single file.
-                // Vite's magic will inline it if `cssCodeSplit` is false and it's small enough,
-                // or if specific plugins for inlining are used.
-                // However, the primary effect of `cssCodeSplit: false` is to consolidate.
-                // Forcing true inlining is harder and usually relies on custom Rollup plugins.
-                // Let's rely on cssCodeSplit: false and verify the resulting HTML structure directly.
-                return 'assets/index.css'; // Just a consistent name
-            }
-            return 'assets/[name]-[hash][extname]';
-        },
+        manualChunks: undefined, // Prevent JS code splitting
+        assetFileNames: 'assets/index.css', // Force all CSS to be named 'index.css' in assets
       },
     },
-    cssCodeSplit: false, // Prevents CSS splitting into separate files, should lead to single CSS bundle
   },
 });
