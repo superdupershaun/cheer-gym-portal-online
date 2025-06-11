@@ -3,22 +3,16 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  // IMPORTANT: The base path is crucial for GitHub Pages subfolder deployment
-  base: './',
+  // IMPORTANT: Set base to your GitHub repository name for absolute paths
+  base: '/cheer-gym-portal-online/', // <--- THIS IS YOUR REPOSITORY NAME
   build: {
     chunkSizeWarningLimit: 1500, // Helps manage bundle size warnings.
-    cssCodeSplit: false, // Ensure all CSS is bundled into a single file
+    cssCodeSplit: true, // Let Vite split CSS normally now, post-processing will handle paths
     rollupOptions: {
       output: {
-        manualChunks: undefined, // Prevent JS code splitting if any
-        // Force the main CSS file to be named 'style.css' without a hash
-        assetFileNames: (assetInfo) => {
-          if (assetInfo.name === 'style.css') { // This targets the main CSS output from Vite
-            return 'assets/style.css'; // Consistent path and filename
-          }
-          // For other assets (JS, images, etc.), use default hashed names
-          return 'assets/[name]-[hash][extname]';
-        },
+        manualChunks: undefined,
+        // Let Vite use its default hashed asset names. The GH Actions workflow will fix the base.
+        // assetFileNames: 'assets/[name]-[hash][extname]', // Vite default
       },
     },
   },

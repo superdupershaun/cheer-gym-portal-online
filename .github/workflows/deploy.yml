@@ -34,9 +34,43 @@ jobs:
         run: npm install
 
       - name: Build React app
-        run: npm run build
+        run: npm install && npm run build # Run npm install again just before build for robustness
 
-      # --- Removed: The "Fix CSS Link in index.html for GitHub Pages" step is no longer needed. ---
+      # --- IMPORTANT: NEW STEP TO INLINE CSS (More Robust) ---
+      - name: Inline CSS into index.html
+        run: |
+          # Find the built CSS file (Vite often outputs a hashed name like index-HASH.css)
+          # Use `find` to get the actual path to the main CSS file
+          CSS_FILE_PATH=$(find dist/assets -name "index-*.css" | head -n 1) # Catches any hashed CSS file
+          
+          # Fallback for static style.css name if that's preferred or vite config changes
+          if [ -z "$CSS_FILE_PATH" ] && [ -f "dist/assets/style.css" ]; then
+            CSS_FILE_PATH="dist/assets/style.css"
+          fi
+
+          # Check if the CSS file exists and has content
+          if [ ! -f "$CSS_FILE_PATH" ] || [ ! -s "$CSS_FILE_PATH" ]; then
+            echo "Error: CSS file ($CSS_FILE_PATH) not found or is empty after build."
+            ls -R dist # List dist contents for debugging
+            exit 1
+          fi
+
+          # Read the content of the CSS file
+          CSS_CONTENT=$(cat "$CSS_FILE_PATH")
+
+          INDEX_HTML_PATH="dist/index.html"
+          
+          # 1. Remove all <link rel="stylesheet" ...> tags from index.html
+          # This sed command is more generic to catch any variations (hashed, crossorigin, etc.)
+          sed -i -E '/<link rel="stylesheet".*href=".*\.css"[^>]*>/d' "$INDEX_HTML_PATH"
+
+          # 2. Insert the CSS content directly into a <style> tag before </head>
+          # Use `sed` to insert the CSS content wrapped in <style> tags before the </head> tag.
+          sed -i "s|</head>|<style>${CSS_CONTENT}</style>\n</head>|g" "$INDEX_HTML_PATH"
+
+          echo "CSS inlined into $INDEX_HTML_PATH. Check the modified HTML:"
+          cat "$INDEX_HTML_PATH" # Print the modified HTML for debugging
+      # --- END NEW STEP ---
 
       - name: Upload production-ready build artifacts for deployment
         uses: actions/upload-pages-artifact@v3
@@ -53,3 +87,4 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+s
