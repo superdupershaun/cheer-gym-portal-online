@@ -2,8 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* --- IMPORTANT: TEST STYLE --- */
+/* Optional: Add a test style to confirm Tailwind is working */
 body {
-  background-color: #ffcccc !important; /* Light red */
+  background-color: #f0f4f8; /* Light blue-gray background */
 }
-/* --- END TEST STYLE --- */

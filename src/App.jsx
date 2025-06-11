@@ -728,7 +728,7 @@ const CheckInMode = ({ db, currentUserId, showAppToast }) => {
                 >
                   <div className="flex items-center">
                     <img
-                      src={athlete.profilePicture || `https://placehold.co/50x50/cccccc/333333?text=${athlete.name.charAt(0)}`}
+                      src={athlete.profilePicture || `https://placehold.co/50x50/cccccc/333333?text=${athlete.name.charAt(0)}}`}
                       alt={athlete.name}
                       className="w-12 h-12 rounded-full mr-4 object-cover border border-gray-300"
                     />
@@ -1067,58 +1067,47 @@ const AttendanceView = ({ db, currentUserId, showAppToast }) => {
       >
         <ChevronLeft size={20} className="mr-2" /> Back to {selectedCategory} Selection
       </button>
-      <h3 className="text-2xl font-bold text-center text-indigo-700 mb-6">
-        Attendance for {selectedEntity} ({selectedCategory})
-      </h3>
-      <div className="overflow-x-auto rounded-lg shadow-md border border-gray-200">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <h2 className="text-3xl font-bold text-center text-gray-800 mb-6">
+        Attendance for: <span className="text-indigo-600">{selectedEntity}</span>
+      </h2>
+      <div className="overflow-x-auto rounded-lg shadow">
+        <table className="min-w-full bg-white">
+          <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Athlete Name
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Last Check-in Time
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Activities Today
-              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Athlete Name</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Check-in</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Activities</th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="divide-y divide-gray-200">
             {athletes.length === 0 ? (
               <tr>
-                <td colSpan="4" className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">
+                <td colSpan="4" className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
                   No athletes found for this {selectedCategory.toLowerCase()}.
                 </td>
               </tr>
             ) : (
               athletes.map(athlete => {
                 const { status, lastCheckinTime, activities } = getAthleteStatus(athlete.id);
+                const isCheckedIn = status === 'Checked In';
                 return (
-                  <tr key={athlete.id} className={status === 'Checked In' ? 'bg-green-50' : ''}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <img
-                          src={athlete.profilePicture || `https://placehold.co/40x40/cccccc/333333?text=${athlete.name.charAt(0)}`}
-                          alt={athlete.name}
-                          className="w-8 h-8 rounded-full mr-3 object-cover"
-                        />
-                        <div className="text-sm font-medium text-gray-900">{athlete.name}</div>
-                      </div>
+                  <tr key={athlete.id} className={isCheckedIn ? 'bg-green-50' : 'bg-red-50'}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 flex items-center">
+                      <img
+                        src={athlete.profilePicture || `https://placehold.co/30x30/cccccc/333333?text=${athlete.name.charAt(0)}`}
+                        alt={athlete.name}
+                        className="w-8 h-8 rounded-full mr-3 object-cover border border-gray-200"
+                      />
+                      {athlete.name}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${status === 'Checked In' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                        {status}
-                      </span>
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm ${isCheckedIn ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}`}>
+                      {status}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                       {lastCheckinTime}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                       {activities}
                     </td>
                   </tr>
@@ -1132,17 +1121,17 @@ const AttendanceView = ({ db, currentUserId, showAppToast }) => {
   );
 };
 
+
 // --- Athlete Profiles Component ---
 const AthleteProfiles = ({ db, currentUserId, userRole, showAppToast }) => {
   const [athletes, setAthletes] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [filterText, setFilterText] = useState('');
   const [showAddAthleteModal, setShowAddAthleteModal] = useState(false);
-  const [selectedAthlete, setSelectedAthlete] = useState(null);
-  const [isEditingAthlete, setIsEditingAthlete] = useState(false); // Correctly defined state for AthleteProfiles
-  const [showDeleteAthleteConfirm, setShowDeleteAthleteConfirm] = useState(false); // NEW: State for confirmation modal
-  const [athleteToDelete, setAthleteToDelete] = useState(null); // NEW: Store athlete ID for deletion
+  const [editingAthlete, setEditingAthlete] = useState(null); // null or athlete object for editing
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [athleteToDelete, setAthleteToDelete] = useState(null);
 
-  // Fetch all athletes and listen for real-time updates
+  // Fetch athletes in real-time
   useEffect(() => {
     if (!db || !currentUserId) return;
     const athletesRef = collection(db, privateUserDataPath(currentUserId), COLLECTIONS.ATHLETES);
@@ -1150,755 +1139,427 @@ const AthleteProfiles = ({ db, currentUserId, userRole, showAppToast }) => {
       const fetchedAthletes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setAthletes(fetchedAthletes.sort((a, b) => a.name.localeCompare(b.name)));
     }, (error) => {
-      console.error("Error fetching athletes for profiles:", error);
+      console.error("Error fetching athletes:", error);
       showAppToast(`Error loading athletes: ${error.message}`, 'error');
     });
     return () => unsubscribe();
   }, [db, currentUserId, showAppToast]);
 
-  const approvedAthletes = athletes.filter(a => a.isApproved);
-  const pendingAthletes = athletes.filter(a => !a.isApproved);
-
-  const filteredApprovedAthletes = approvedAthletes.filter(athlete =>
-    athlete.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredAthletes = athletes.filter(athlete =>
+    athlete.name.toLowerCase().includes(filterText.toLowerCase()) ||
+    athlete.teams.some(team => team.toLowerCase().includes(filterText.toLowerCase())) ||
+    athlete.classes.some(cls => cls.toLowerCase().includes(filterText.toLowerCase()))
   );
 
-  const handleApproveAthlete = async (athleteId) => {
-    const canApprove = userRole === 'admin';
-    if (!db || !currentUserId || !canApprove) {
-      showAppToast("Permission denied. Only Admin can approve athletes.", 'error');
-      return;
-    }
-    showAppToast("Approving athlete...", 'info');
+  const handleAddAthleteClick = () => {
+    setEditingAthlete(null); // Ensure we are adding, not editing
+    setShowAddAthleteModal(true);
+  };
+
+  const handleEditAthleteClick = (athlete) => {
+    setEditingAthlete(athlete);
+    setShowAddAthleteModal(true);
+  };
+
+  const handleDeleteAthleteClick = (athlete) => {
+    setAthleteToDelete(athlete);
+    setConfirmDelete(true);
+  };
+
+  const confirmDeleteAthlete = async () => {
+    if (!db || !currentUserId || !athleteToDelete) return;
+
     try {
-      const athleteDocRef = doc(db, privateUserDataPath(currentUserId), COLLECTIONS.ATHLETES, athleteId);
-      await updateDoc(athleteDocRef, { isApproved: true });
-      showAppToast("Athlete approved successfully!");
+      await deleteDoc(doc(db, privateUserDataPath(currentUserId), COLLECTIONS.ATHLETES, athleteToDelete.id));
+      showAppToast(`Athlete ${athleteToDelete.name} deleted successfully!`);
     } catch (error) {
-      console.error("Error approving athlete:", error);
-      showAppToast(`Failed to approve: ${error.message}`, 'error');
-    }
-  };
-
-  // NEW: Function to open confirmation modal
-  const confirmDeleteAthlete = (athleteId) => {
-    setAthleteToDelete(athleteId);
-    setShowDeleteAthleteConfirm(true);
-  };
-
-  // NEW: Actual delete logic, called from confirmation modal
-  const executeDeleteAthlete = async () => {
-    const canDelete = userRole === 'admin';
-    if (!db || !currentUserId || !canDelete || !athleteToDelete) {
-      showAppToast("Permission denied or athlete not selected.", 'error');
-      return;
-    }
-    showAppToast("Deleting athlete...", 'info');
-    try {
-      const athleteDocRef = doc(db, privateUserDataPath(currentUserId), COLLECTIONS.ATHLETES, athleteToDelete);
-      await deleteDoc(athleteDocRef);
-      showAppToast("Athlete deleted successfully!");
-    }
-    catch (error) {
       console.error("Error deleting athlete:", error);
-      showAppToast(`Failed to delete: ${error.message}`, 'error');
+      showAppToast(`Failed to delete athlete: ${error.message}`, 'error');
     } finally {
-      setShowDeleteAthleteConfirm(false);
+      setConfirmDelete(false);
       setAthleteToDelete(null);
     }
   };
 
-
-  const handleOpenProfile = (athlete) => {
-    setSelectedAthlete(athlete);
-    setIsEditingAthlete(false); // Default to view mode when opening profile
-  };
-
-  const handleCloseProfile = () => {
-    setSelectedAthlete(null);
-    setIsEditingAthlete(false); // Ensure edit mode is off when closing
-  };
-
-  const handleEditProfileToggle = () => {
-    const canEdit = userRole === 'admin';
-    if (canEdit) {
-      setIsEditingAthlete(prev => !prev);
-    } else {
-      showAppToast("Only Admin can edit athlete profiles.", 'error');
-    }
-  };
-
-  const canAddAthlete = userRole === 'admin'; // For the 'Add New Athlete' button
-
   return (
-    <div className="p-4">
-      <h3 className="text-2xl font-bold text-center text-indigo-700 mb-6">Athlete Profiles</h3>
+    <div className="space-y-6">
+      <h3 className="text-2xl font-bold text-gray-800 mb-4">Athlete Profiles</h3>
 
-      <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
         <input
           type="text"
-          placeholder="Search approved athletes by name..."
-          className="flex-1 min-w-[200px] px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Filter athletes by name, team, or class..."
+          className="w-full sm:w-2/3 px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+          value={filterText}
+          onChange={(e) => setFilterText(e.target.value)}
         />
-        <button
-          onClick={() => setShowAddAthleteModal(true)}
-          className="bg-indigo-600 text-white py-2 px-5 rounded-lg font-semibold shadow-md hover:bg-indigo-700 transition duration-300 transform hover:scale-105 flex items-center"
-          disabled={!canAddAthlete}
-        >
-          <Plus size={20} className="mr-2" /> Add New Athlete
-          {!canAddAthlete && <span className="ml-2 text-xs opacity-75"> (Admin Only)</span>}
-        </button>
-      </div>
-
-      {pendingAthletes.length > 0 && (
-        <div className="mb-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg shadow-sm">
-          <h4 className="text-xl font-semibold text-yellow-800 mb-4">Pending Athletes for Approval</h4>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-yellow-200">
-              <thead className="bg-yellow-100">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-yellow-700 uppercase tracking-wider">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-yellow-700 uppercase tracking-wider">Added By</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-yellow-700 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-yellow-200">
-                {pendingAthletes.map(athlete => (
-                  <tr key={athlete.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{athlete.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{athlete.addedByCoach || 'N/A'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button
-                        onClick={() => handleApproveAthlete(athlete.id)}
-                        className={`text-green-600 hover:text-green-900 mr-3 ${!canAddAthlete ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        disabled={!canAddAthlete}
-                      >
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => confirmDeleteAthlete(athlete.id)}
-                        className={`text-red-600 hover:text-red-900 ${!canAddAthlete ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        disabled={!canAddAthlete}
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      <h4 className="text-xl font-semibold text-gray-800 mb-4">Approved Athletes</h4>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredApprovedAthletes.length === 0 ? (
-          <p className="col-span-full text-center text-gray-600">No approved athletes found.</p>
-        ) : (
-          filteredApprovedAthletes.map(athlete => (
-            <div
-              key={athlete.id}
-              className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 flex items-center space-x-4 hover:shadow-md transition cursor-pointer"
-              onClick={() => handleOpenProfile(athlete)}
-            >
-              <img
-                src={athlete.profilePicture || `https://placehold.co/60x60/cccccc/333333?text=${athlete.name.charAt(0)}`}
-                alt={athlete.name}
-                className="w-16 h-16 rounded-full object-cover border-4 border-gray-300"
-              />
-              <div>
-                <p className="text-lg font-semibold text-gray-900">{athlete.name}</p>
-                <p className="text-sm text-gray-600">{athlete.teams.join(', ')} / {athlete.classes.join(', ')}</p>
-              </div>
-            </div>
-          ))
+        {(userRole === 'coach' || userRole === 'admin') && (
+          <button
+            onClick={handleAddAthleteClick}
+            className="w-full sm:w-auto bg-indigo-600 text-white py-2 px-6 rounded-lg font-semibold shadow-md hover:bg-indigo-700 flex items-center justify-center transition duration-200"
+          >
+            <Plus size={20} className="mr-2" /> Add New Athlete
+          </button>
         )}
       </div>
 
-      <Modal isOpen={showAddAthleteModal} title="Add New Athlete" onClose={() => setShowAddAthleteModal(false)} showCloseButton={true}>
-        <AddEditAthleteForm
-          db={db}
-          currentUserId={currentUserId}
-          onClose={() => setShowAddAthleteModal(false)}
-          showAppToast={showAppToast}
-          isNew={true}
-          // When adding new, no initialData or athleteId
-          isEditing={true} // New athletes are always "editable" for initial input
-          setParentIsEditing={() => {}} // No external state change needed for new form
-          userRole={userRole}
-        />
-      </Modal>
+      {filteredAthletes.length === 0 ? (
+        <p className="text-center text-gray-600 py-8">No athletes found matching your criteria.</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredAthletes.map(athlete => (
+            <div key={athlete.id} className="bg-white border border-gray-200 rounded-xl shadow-lg p-6 flex flex-col">
+              <div className="flex items-center mb-4">
+                <img
+                  src={athlete.profilePicture || `https://placehold.co/80x80/cccccc/333333?text=${athlete.name.charAt(0)}`}
+                  alt={athlete.name}
+                  className="w-20 h-20 rounded-full mr-4 object-cover border-2 border-indigo-300"
+                />
+                <div>
+                  <h4 className="text-xl font-bold text-gray-900">{athlete.name}</h4>
+                  <p className={`text-sm font-semibold ${athlete.isApproved ? 'text-green-600' : 'text-red-600'}`}>
+                    {athlete.isApproved ? 'Approved' : 'Pending Approval'}
+                  </p>
+                </div>
+              </div>
+              <p className="text-gray-700 mb-2"><span className="font-semibold">Teams:</span> {athlete.teams.join(', ') || 'N/A'}</p>
+              <p className="text-gray-700 mb-2"><span className="font-semibold">Classes:</span> {athlete.classes.join(', ') || 'N/A'}</p>
+              <p className="text-gray-700 mb-4"><span className="font-semibold">Improvement Areas:</span> {athlete.improvementAreas || 'N/A'}</p>
 
-      {selectedAthlete && (
-        <Modal isOpen={!!selectedAthlete} title={isEditingAthlete ? "Edit Athlete Profile" : "View Athlete Profile"} onClose={handleCloseProfile} showCloseButton={true}>
-          <div className="flex justify-end mb-4">
-            <button
-              onClick={handleEditProfileToggle}
-              className={`py-2 px-4 rounded-lg flex items-center transition duration-200
-                ${isEditingAthlete ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-indigo-500 text-white hover:bg-indigo-600'}
-                ${!canAddAthlete ? 'opacity-50 cursor-not-allowed' : ''}
-              `}
-              disabled={!canAddAthlete}
-            >
-              {isEditingAthlete ? <X size={18} className="mr-2" /> : <Edit size={18} className="mr-2" />}
-              {isEditingAthlete ? 'Cancel Edit' : 'Edit Profile'}
-            </button>
-          </div>
-          <AddEditAthleteForm
-            db={db}
-            currentUserId={currentUserId}
-            onClose={handleCloseProfile}
-            showAppToast={showAppToast}
-            isNew={false}
-            initialData={selectedAthlete}
-            isEditing={isEditingAthlete} // Pass current editing state
-            setParentIsEditing={setIsEditingAthlete} // Pass the setter to allow form to control parent's editing state
-            athleteId={selectedAthlete.id}
-            userRole={userRole} // Pass userRole for access control within the form
-          />
-        </Modal>
+              {/* Skills Section */}
+              {athlete.skills && athlete.skills.length > 0 && (
+                <div className="mb-4">
+                  <p className="font-semibold text-gray-800 mb-2">Skills Progress:</p>
+                  <ul className="list-disc list-inside space-y-1">
+                    {athlete.skills.map((skill, index) => (
+                      <li key={index} className="text-sm text-gray-700">
+                        {skill.name}: <span className={`font-semibold ${skill.status === 'Mastered' ? 'text-green-600' : skill.status === 'Working On' ? 'text-blue-600' : 'text-gray-600'}`}>{skill.status}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Coach Notes Section */}
+              {athlete.coachNotes && athlete.coachNotes.length > 0 && (
+                <div className="mb-4">
+                  <p className="font-semibold text-gray-800 mb-2">Coach Notes:</p>
+                  <ul className="list-disc list-inside space-y-1">
+                    {athlete.coachNotes.map((note, index) => (
+                      <li key={index} className="text-sm text-gray-700">
+                        {note.date}: {note.text}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div className="mt-auto flex justify-end space-x-2 pt-4 border-t border-gray-100">
+                {(userRole === 'coach' || userRole === 'admin') && (
+                  <>
+                    <button
+                      onClick={() => handleEditAthleteClick(athlete)}
+                      className="text-indigo-600 hover:text-indigo-800 transition-colors"
+                      title="Edit Athlete"
+                    >
+                      <Edit size={20} />
+                    </button>
+                    {userRole === 'admin' && ( // Only admin can delete
+                      <button
+                        onClick={() => handleDeleteAthleteClick(athlete)}
+                        className="text-red-600 hover:text-red-800 transition-colors"
+                        title="Delete Athlete"
+                      >
+                        <Trash2 size={20} />
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
       )}
 
-      {/* NEW: Confirmation Modal for Athlete Deletion */}
+      {showAddAthleteModal && (
+        <AthleteFormModal
+          db={db}
+          currentUserId={currentUserId}
+          showAppToast={showAppToast}
+          onClose={() => setShowAddAthleteModal(false)}
+          athleteToEdit={editingAthlete}
+          userRole={userRole}
+        />
+      )}
+
       <ConfirmationModal
-        isOpen={showDeleteAthleteConfirm}
+        isOpen={confirmDelete}
         title="Confirm Deletion"
-        message="Are you sure you want to delete this athlete? This action cannot be undone."
-        onConfirm={executeDeleteAthlete}
-        onCancel={() => setShowDeleteAthleteConfirm(false)}
+        message={`Are you sure you want to delete athlete ${athleteToDelete?.name}? This action cannot be undone.`}
+        onConfirm={confirmDeleteAthlete}
+        onCancel={() => setConfirmDelete(false)}
         confirmText="Delete"
       />
     </div>
   );
 };
 
-// --- Add/Edit Athlete Form Component ---
-const AddEditAthleteForm = ({ db, currentUserId, onClose, showAppToast, isNew, initialData, isEditing, setParentIsEditing, athleteId, userRole }) => {
-  const [formData, setFormData] = useState(initialData || {
-    name: '',
-    teams: [],
-    classes: [],
-    skills: [], // { name: string, status: string }
-    improvementAreas: '',
-    coachNotes: [],
-    parentName: '',
-    parentPhone: '',
-    parentEmail: '',
-    emergencyContactName: '',
-    emergencyContactPhone: '',
-    isApproved: isNew ? false : (initialData?.isApproved || false), // New athletes start as pending
-    addedByCoach: '', // Will be filled by current coach
-    profilePicture: ''
-  });
-  const [allTeams, setAllTeams] = useState([]);
-  const [allClasses, setAllClasses] = useState([]);
-  const [newSkillName, setNewSkillName] = useState('');
-  const [newSkillStatus, setNewSkillStatus] = useState('Not Started');
-  const [newCoachNote, setNewCoachNote] = useState('');
-  const [imageUploadMethod, setImageUploadMethod] = useState(null); // 'file' or 'camera'
-  const fileInputRef = useRef(null);
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
 
-  const [isLoading, setIsLoading] = useState(false);
-  const canEditForm = userRole === 'admin'; // For form fields inside AddEditAthleteForm
+// --- Athlete Form Modal (Add/Edit Athlete) ---
+const AthleteFormModal = ({ db, currentUserId, showAppToast, onClose, athleteToEdit, userRole }) => {
+  const [name, setName] = useState('');
+  const [teams, setTeams] = useState(''); // Comma-separated string
+  const [classes, setClasses] = useState(''); // Comma-separated string
+  const [skills, setSkills] = useState([{ name: '', status: 'Not Started' }]);
+  const [improvementAreas, setImprovementAreas] = useState('');
+  const [coachNotes, setCoachNotes] = useState([]); // Array of {date, text}
+  const [newNoteText, setNewNoteText] = useState('');
+  const [parentName, setParentName] = useState('');
+  const [parentPhone, setParentPhone] = useState('');
+  const [parentEmail, setParentEmail] = useState('');
+  const [emergencyContactName, setEmergencyContactName] = useState('');
+  const [emergencyContactPhone, setEmergencyContactPhone] = useState('');
+  const [isApproved, setIsApproved] = useState(false);
+  const [profilePicture, setProfilePicture] = useState('');
 
-  // Fetch all available teams and classes for multi-select
+  const isEditing = !!athleteToEdit;
+
   useEffect(() => {
-    if (!db || !currentUserId) return;
-    const fetchAllEntities = async () => {
-      try {
-        const athletesRef = collection(db, privateUserDataPath(currentUserId), COLLECTIONS.ATHLETES);
-        const querySnapshot = await getDocs(query(athletesRef, where('isApproved', '==', true))); // Only consider approved for existing teams/classes
-        const teamsSet = new Set();
-        const classesSet = new Set();
-        querySnapshot.forEach(docSnap => {
-          docSnap.data().teams?.forEach(t => teamsSet.add(t));
-          docSnap.data().classes?.forEach(c => classesSet.add(c));
-        });
-        setAllTeams(Array.from(teamsSet).sort());
-        setAllClasses(Array.from(classesSet).sort());
-      } catch (error) {
-        console.error("Error fetching all teams/classes:", error);
-      }
-    };
-    fetchAllEntities();
-  }, [db, currentUserId]);
-
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    if (type === 'checkbox') {
-      const { group } = e.target.dataset;
-      let updatedArray = [...formData[group]];
-      if (checked) {
-        updatedArray.push(value);
-      } else {
-        updatedArray = updatedArray.filter(item => item !== value);
-      }
-      setFormData({ ...formData, [group]: updatedArray });
-    } else {
-      setFormData({ ...formData, [name]: value });
+    if (athleteToEdit) {
+      setName(athleteToEdit.name || '');
+      setTeams(athleteToEdit.teams ? athleteToEdit.teams.join(', ') : '');
+      setClasses(athleteToEdit.classes ? athleteToEdit.classes.join(', ') : '');
+      setSkills(athleteToEdit.skills && athleteToEdit.skills.length > 0 ? athleteToEdit.skills : [{ name: '', status: 'Not Started' }]);
+      setImprovementAreas(athleteToEdit.improvementAreas || '');
+      setCoachNotes(athleteToEdit.coachNotes || []);
+      setParentName(athleteToEdit.parentName || '');
+      setParentPhone(athleteToEdit.parentPhone || '');
+      setParentEmail(athleteToEdit.parentEmail || '');
+      setEmergencyContactName(athleteToEdit.emergencyContactName || '');
+      setEmergencyContactPhone(athleteToEdit.emergencyContactPhone || '');
+      setIsApproved(athleteToEdit.isApproved || false);
+      setProfilePicture(athleteToEdit.profilePicture || '');
     }
-  };
+  }, [athleteToEdit]);
 
   const handleAddSkill = () => {
-    if (newSkillName.trim()) {
-      setFormData({
-        ...formData,
-        skills: [...formData.skills, { name: newSkillName.trim(), status: newSkillStatus }]
-      });
-      setNewSkillName('');
-      setNewSkillStatus('Not Started');
-    }
+    setSkills([...skills, { name: '', status: 'Not Started' }]);
   };
 
-  const handleUpdateSkillStatus = (index, newStatus) => {
-    const updatedSkills = [...formData.skills];
-    updatedSkills[index].status = newStatus;
-    setFormData({ ...formData, skills: updatedSkills });
+  const handleSkillChange = (index, field, value) => {
+    const newSkills = [...skills];
+    newSkills[index][field] = value;
+    setSkills(newSkills);
   };
 
   const handleRemoveSkill = (index) => {
-    const updatedSkills = formData.skills.filter((_, i) => i !== index);
-    setFormData({ ...formData, skills: updatedSkills });
+    const newSkills = skills.filter((_, i) => i !== index);
+    setSkills(newSkills);
   };
 
-  const handleAddCoachNote = async () => {
-    if (newCoachNote.trim()) {
-      // Fetch current coach's name
-      let coachName = "Unknown Coach";
-      try {
-        // Only attempt to fetch coach name if auth and db are initialized
-        if (auth && db) {
-          const coachesRef = collection(db, privateUserDataPath(currentUserId), COLLECTIONS.COACHES);
-          // Try to find coach by current user's UID first if authenticated
-          if (auth.currentUser?.uid) {
-            const coachDoc = await getDoc(doc(coachesRef, auth.currentUser.uid));
-            if (coachDoc.exists()) {
-              coachName = coachDoc.data().name;
-            }
-          }
-          // Fallback if not found by UID or if not logged in as a specific coach,
-          // check if current user is admin (MASTER_PASSCODE)
-          if (coachName === "Unknown Coach" && userRole === 'admin') {
-            const q = query(coachesRef, where('passcode', '==', MASTER_PASSCODE)); // Assuming master passcode is tied to a coach
-            const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) {
-              coachName = querySnapshot.docs[0].data().name;
-            }
-          }
-        }
-      } catch (e) {
-        console.warn("Could not fetch coach name for note:", e);
-      }
-
-      setFormData({
-        ...formData,
-        coachNotes: [
-          ...formData.coachNotes,
-          { timestamp: new Date().toISOString(), note: newCoachNote.trim(), coachName: coachName }
-        ]
-      });
-      setNewCoachNote('');
-    }
-  };
-
-  const handleRemoveCoachNote = (index) => {
-    const updatedNotes = formData.coachNotes.filter((_, i) => i !== index);
-    setFormData({ ...formData, coachNotes: updatedNotes });
-  };
-
-  const handleProfilePictureUpload = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData({ ...formData, profilePicture: reader.result }); // Base64
-        setImageUploadMethod(null); // Close modal
+  const handleAddNote = () => {
+    if (newNoteText.trim()) {
+      const newNote = {
+        date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+        text: newNoteText.trim()
       };
-      reader.readAsDataURL(file);
+      setCoachNotes([...coachNotes, newNote]);
+      setNewNoteText('');
     }
   };
 
-  const handleRemoveProfilePicture = () => {
-    setFormData({ ...formData, profilePicture: '' });
+  const handleRemoveNote = (index) => {
+    const newNotes = coachNotes.filter((_, i) => i !== index);
+    setCoachNotes(newNotes);
   };
 
-  const startCamera = async () => {
-    setImageUploadMethod('camera');
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-      }
-    } catch (err) {
-      console.error("Error accessing camera:", err);
-      showAppToast(`Could not access camera: ${err.message}. Please ensure permissions are granted.`, 'error');
-      setImageUploadMethod(null);
-    }
-  };
-
-  const takePhoto = () => {
-    if (videoRef.current && canvasRef.current) {
-      const context = canvasRef.current.getContext('2d');
-      canvasRef.current.width = videoRef.current.videoWidth;
-      canvasRef.current.height = videoRef.current.videoHeight;
-      context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
-      const imageDataUrl = canvasRef.current.toDataURL('image/png');
-      setFormData({ ...formData, profilePicture: imageDataUrl });
-      // Stop camera stream
-      if (videoRef.current.srcObject) {
-        videoRef.current.srcObject.getTracks().forEach(track => track.stop());
-      }
-      setImageUploadMethod(null);
-    }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
-    try {
-      const athleteCollectionRef = collection(db, privateUserDataPath(currentUserId), COLLECTIONS.ATHLETES);
-      let coachName = "Unknown Coach";
-      // Try to get current coach's name if not an admin
-      try {
-        // Only attempt to fetch coach name if auth and db are initialized
-        if (auth && db) {
-          const coachesRef = collection(db, privateUserDataPath(currentUserId), COLLECTIONS.COACHES);
-          // Try to find coach by current user's UID first if authenticated
-          if (auth.currentUser?.uid) {
-            const coachDoc = await getDoc(doc(coachesRef, auth.currentUser.uid));
-            if (coachDoc.exists()) {
-              coachName = coachDoc.data().name;
-            }
-          }
-          // Fallback if not found by UID or if not logged in as a specific coach,
-          // check if current user is admin (MASTER_PASSCODE)
-          if (coachName === "Unknown Coach" && userRole === 'admin') {
-            const q = query(coachesRef, where('passcode', '==', MASTER_PASSCODE));
-            const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) {
-              coachName = querySnapshot.docs[0].data().name;
-            }
-          }
-        }
-      } catch (e) {
-        console.warn("Could not fetch coach name for new athlete:", e);
-      }
 
-      if (isNew) {
-        // Add new athlete
-        await addDoc(athleteCollectionRef, { ...formData, addedByCoach: coachName });
-        showAppToast("Athlete added successfully!");
+    if (!db || !currentUserId) {
+      showAppToast("App not ready.", 'error');
+      return;
+    }
+
+    const athleteData = {
+      name: name.trim(),
+      teams: teams.split(',').map(t => t.trim()).filter(Boolean),
+      classes: classes.split(',').map(c => c.trim()).filter(Boolean),
+      skills: skills.filter(s => s.name.trim()),
+      improvementAreas: improvementAreas.trim(),
+      coachNotes: coachNotes,
+      parentName: parentName.trim(),
+      parentPhone: parentPhone.trim(),
+      parentEmail: parentEmail.trim(),
+      emergencyContactName: emergencyContactName.trim(),
+      emergencyContactPhone: emergencyContactPhone.trim(),
+      isApproved: isApproved,
+      profilePicture: profilePicture || `https://placehold.co/100x100/cccccc/333333?text=${name.charAt(0)}`,
+    };
+
+    try {
+      if (isEditing) {
+        await setDoc(doc(db, privateUserDataPath(currentUserId), COLLECTIONS.ATHLETES, athleteToEdit.id), athleteData);
+        showAppToast(`Athlete ${name} updated successfully!`);
       } else {
-        // Update existing athlete
-        const canSave = userRole === 'admin';
-        if (!canSave) {
-          showAppToast("Permission denied. Only Admin can save edits.", 'error');
-          setIsLoading(false);
-          return;
-        }
-        const athleteDocRef = doc(db, privateUserDataPath(currentUserId), COLLECTIONS.ATHLETES, athleteId);
-        await updateDoc(athleteDocRef, formData);
-        showAppToast("Athlete updated successfully!");
-        // Use the passed setParentIsEditing function to update the parent's state
-        if (setParentIsEditing) {
-            setParentIsEditing(false);
-        }
+        // Add athlete without a specific ID, let Firestore generate one
+        await addDoc(collection(db, privateUserDataPath(currentUserId), COLLECTIONS.ATHLETES), {
+          ...athleteData,
+          addedByCoach: userRole === 'coach' ? 'Coach' : 'Admin', // Track who added/approved
+        });
+        showAppToast(`Athlete ${name} added successfully!`);
       }
-      onClose(); // Close modal after successful operation
+      onClose();
     } catch (error) {
-      console.error("Error saving athlete:", error);
-      showAppToast(`Failed to save athlete: ${error.message}`, 'error');
-    } finally {
-      setIsLoading(false);
+      console.error(`Error ${isEditing ? 'updating' : 'adding'} athlete:`, error);
+      showAppToast(`Failed to ${isEditing ? 'update' : 'add'} athlete: ${error.message}`, 'error');
     }
   };
 
-  const isFormEditable = isEditing || isNew;
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-h-[80vh] overflow-y-auto pr-2">
-      {/* Profile Picture */}
-      <div className="flex flex-col items-center mb-6">
-        <img
-          src={formData.profilePicture || `https://placehold.co/120x120/cccccc/333333?text=${formData.name.charAt(0) || '?'}`}
-          alt="Profile"
-          className="w-24 h-24 rounded-full object-cover border-4 border-indigo-200 shadow-md mb-4"
-        />
-        {isFormEditable && (
-          <div className="flex space-x-2">
-            <button
-              type="button"
-              onClick={() => fileInputRef.current.click()}
-              className="bg-gray-200 text-gray-700 py-2 px-4 rounded-lg flex items-center hover:bg-gray-300 transition"
-            >
-              <Image size={18} className="mr-2" /> Upload
-            </button>
-            <input
-              type="file"
-              accept="image/*"
-              ref={fileInputRef}
-              onChange={handleProfilePictureUpload}
-              className="hidden"
-            />
-            <button
-              type="button"
-              onClick={startCamera}
-              className="bg-gray-200 text-gray-700 py-2 px-4 rounded-lg flex items-center hover:bg-gray-300 transition"
-            >
-              <Camera size={18} className="mr-2" /> Camera
-            </button>
-            {formData.profilePicture && (
-              <button
-                type="button"
-                onClick={handleRemoveProfilePicture}
-                className="bg-red-100 text-red-700 py-2 px-4 rounded-lg flex items-center hover:bg-red-200 transition"
-              >
-                <Trash2 size={18} className="mr-2" /> Remove
-              </button>
+    <Modal isOpen={true} title={isEditing ? "Edit Athlete Profile" : "Add New Athlete"} onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+        {/* Basic Info */}
+        <div>
+          <label htmlFor="name" className="block text-sm font-medium text-gray-700">Athlete Name</label>
+          <input type="text" id="name" value={name} onChange={(e) => setName(e.target.value)} required
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+        </div>
+        <div>
+          <label htmlFor="profilePicture" className="block text-sm font-medium text-gray-700">Profile Picture URL (optional)</label>
+          <input type="url" id="profilePicture" value={profilePicture} onChange={(e) => setProfilePicture(e.target.value)}
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+            {profilePicture && (
+              <img src={profilePicture} alt="Profile Preview" className="w-20 h-20 rounded-full mt-2 object-cover" />
             )}
-          </div>
-        )}
-      </div>
+        </div>
+        <div>
+          <label htmlFor="teams" className="block text-sm font-medium text-gray-700">Teams (comma-separated)</label>
+          <input type="text" id="teams" value={teams} onChange={(e) => setTeams(e.target.value)}
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+        </div>
+        <div>
+          <label htmlFor="classes" className="block text-sm font-medium text-gray-700">Classes (comma-separated)</label>
+          <input type="text" id="classes" value={classes} onChange={(e) => setClasses(e.target.value)}
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+        </div>
+        <div>
+          <label htmlFor="improvementAreas" className="block text-sm font-medium text-gray-700">Improvement Areas</label>
+          <textarea id="improvementAreas" value={improvementAreas} onChange={(e) => setImprovementAreas(e.target.value)} rows="3"
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"></textarea>
+        </div>
 
-      {/* Camera/File Upload Modal */}
-      <Modal isOpen={imageUploadMethod === 'camera'} title="Take a Photo" onClose={() => { setImageUploadMethod(null); if(videoRef.current && videoRef.current.srcObject) videoRef.current.srcObject.getTracks().forEach(track => track.stop()); }}>
-        <div className="flex flex-col items-center">
-          <video ref={videoRef} autoPlay playsInline className="w-full max-w-sm rounded-lg border border-gray-300"></video>
-          <canvas ref={canvasRef} className="hidden"></canvas>
-          <button
-            type="button"
-            onClick={takePhoto}
-            className="mt-4 bg-indigo-500 text-white py-2 px-4 rounded-lg flex items-center hover:bg-indigo-600 transition"
-          >
-            <Camera size={20} className="mr-2" /> Take Photo
-          </button>
-        </div>
-      </Modal>
-
-      {/* Basic Info */}
-      <div>
-        <label htmlFor="name" className="block text-sm font-medium text-gray-700">Athlete Name</label>
-        <input type="text" name="name" value={formData.name} onChange={handleChange} required
-          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" disabled={!isFormEditable || !canEditForm} />
-      </div>
-
-      {isNew && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Added By Coach</label>
-          {/* This will be filled automatically on submit based on currentUserId */}
-          <p className="mt-1 text-gray-500 text-sm italic">Will be auto-filled by current coach.</p>
-        </div>
-      )}
-
-      {/* Teams and Classes (Multi-select) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Teams</label>
-          <div className="mt-1 border border-gray-300 rounded-md p-2 max-h-40 overflow-y-auto bg-gray-50">
-            {allTeams.map(team => (
-              <div key={team} className="flex items-center">
-                <input
-                  type="checkbox"
-                  id={`team-${team}`}
-                  name="teams"
-                  value={team}
-                  data-group="teams"
-                  checked={formData.teams.includes(team)}
-                  onChange={handleChange}
-                  className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
-                  disabled={!isFormEditable || !canEditForm}
-                />
-                <label htmlFor={`team-${team}`} className="ml-2 text-sm text-gray-900">{team}</label>
-              </div>
-            ))}
-            {allTeams.length === 0 && <p className="text-sm text-gray-500">No teams available yet.</p>}
-          </div>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Classes</label>
-          <div className="mt-1 border border-gray-300 rounded-md p-2 max-h-40 overflow-y-auto bg-gray-50">
-            {allClasses.map(cls => (
-              <div key={cls} className="flex items-center">
-                <input
-                  type="checkbox"
-                  id={`class-${cls}`}
-                  name="classes"
-                  value={cls}
-                  data-group="classes"
-                  checked={formData.classes.includes(cls)}
-                  onChange={handleChange}
-                  className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
-                  disabled={!isFormEditable || !canEditForm}
-                />
-                <label htmlFor={`class-${cls}`} className="ml-2 text-sm text-gray-900">{cls}</label>
-              </div>
-            ))}
-            {allClasses.length === 0 && <p className="text-sm text-gray-500">No classes available yet.</p>}
-          </div>
-        </div>
-      </div>
-
-      {/* Contact Info */}
-      <h4 className="text-lg font-semibold text-gray-800 mt-6 mb-2">Contact Information</h4>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label htmlFor="parentName" className="block text-sm font-medium text-gray-700">Parent/Guardian Name</label>
-          <input type="text" name="parentName" value={formData.parentName} onChange={handleChange}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" disabled={!isFormEditable || !canEditForm} />
-        </div>
-        <div>
-          <label htmlFor="parentPhone" className="block text-sm font-medium text-gray-700">Parent Phone</label>
-          <input type="tel" name="parentPhone" value={formData.parentPhone} onChange={handleChange}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" disabled={!isFormEditable || !canEditForm} />
-        </div>
-        <div>
-          <label htmlFor="parentEmail" className="block text-sm font-medium text-gray-700">Parent Email</label>
-          <input type="email" name="parentEmail" value={formData.parentEmail} onChange={handleChange}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" disabled={!isFormEditable || !canEditForm} />
-        </div>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-        <div>
-          <label htmlFor="emergencyContactName" className="block text-sm font-medium text-gray-700">Emergency Contact Name</label>
-          <input type="text" name="emergencyContactName" value={formData.emergencyContactName} onChange={handleChange}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" disabled={!isFormEditable || !canEditForm} />
-        </div>
-        <div>
-          <label htmlFor="emergencyContactPhone" className="block text-sm font-medium text-gray-700">Emergency Contact Phone</label>
-          <input type="tel" name="emergencyContactPhone" value={formData.emergencyContactPhone} onChange={handleChange}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" disabled={!isFormEditable || !canEditForm} />
-        </div>
-      </div>
-
-      {/* Skills */}
-      <h4 className="text-lg font-semibold text-gray-800 mt-6 mb-2">Skills</h4>
-      <div className="space-y-3">
-        {formData.skills.map((skill, index) => (
-          <div key={index} className="flex items-center space-x-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
-            <span className="font-medium text-gray-900 flex-1">{skill.name}</span>
-            {isFormEditable && canEditForm ? (
+        {/* Skills Section */}
+        <div className="border border-gray-200 rounded-md p-4">
+          <h4 className="text-lg font-semibold text-gray-800 mb-3">Skills Progress</h4>
+          {skills.map((skill, index) => (
+            <div key={index} className="flex items-center space-x-2 mb-2">
+              <input
+                type="text"
+                placeholder="Skill Name"
+                value={skill.name}
+                onChange={(e) => handleSkillChange(index, 'name', e.target.value)}
+                className="flex-1 border border-gray-300 rounded-md shadow-sm p-2 text-sm"
+              />
               <select
                 value={skill.status}
-                onChange={(e) => handleUpdateSkillStatus(index, e.target.value)}
-                className="border border-gray-300 rounded-md shadow-sm p-1 text-sm"
+                onChange={(e) => handleSkillChange(index, 'status', e.target.value)}
+                className="border border-gray-300 rounded-md shadow-sm p-2 text-sm"
               >
-                <option>Not Started</option>
-                <option>Working On</option>
-                <option>Needs Improvement</option>
-                <option>Mastered</option>
+                <option value="Not Started">Not Started</option>
+                <option value="Working On">Working On</option>
+                <option value="Mastered">Mastered</option>
               </select>
-            ) : (
-              <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                skill.status === 'Mastered' ? 'bg-green-100 text-green-800' :
-                skill.status === 'Working On' ? 'bg-blue-100 text-blue-800' :
-                skill.status === 'Needs Improvement' ? 'bg-yellow-100 text-yellow-800' :
-                'bg-gray-100 text-gray-800'
-              }`}>{skill.status}</span>
-            )}
-            {isFormEditable && canEditForm && (
               <button type="button" onClick={() => handleRemoveSkill(index)} className="text-red-500 hover:text-red-700">
-                <Trash2 size={16} />
+                <X size={18} />
               </button>
-            )}
-          </div>
-        ))}
-        {isFormEditable && canEditForm && (
-          <div className="flex space-x-2 mt-4">
-            <input
-              type="text"
-              placeholder="New Skill Name"
-              value={newSkillName}
-              onChange={(e) => setNewSkillName(e.target.value)}
-              className="flex-1 border border-gray-300 rounded-md shadow-sm p-2"
-            />
-            <select
-              value={newSkillStatus}
-              onChange={(e) => setNewSkillStatus(e.target.value)}
-              className="border border-gray-300 rounded-md shadow-sm p-2"
-            >
-              <option>Not Started</option>
-              <option>Working On</option>
-              <option>Needs Improvement</option>
-              <option>Mastered</option>
-            </select>
-            <button type="button" onClick={handleAddSkill} className="bg-indigo-500 text-white p-2 rounded-lg hover:bg-indigo-600 transition">
-              <Plus size={20} />
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Improvement Areas */}
-      <h4 className="text-lg font-semibold text-gray-800 mt-6 mb-2">Improvement Areas</h4>
-      <textarea
-        name="improvementAreas"
-        value={formData.improvementAreas}
-        onChange={handleChange}
-        rows="3"
-        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-        placeholder="Notes on areas for improvement..."
-        disabled={!isFormEditable || !canEditForm}
-      ></textarea>
-
-      {/* Coach Notes */}
-      <h4 className="text-lg font-semibold text-gray-800 mt-6 mb-2">Coach Notes</h4>
-      <div className="space-y-3">
-        {formData.coachNotes.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).map((note, index) => (
-          <div key={index} className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-            <p className="text-sm text-gray-600">
-              <span className="font-medium">{note.coachName}</span> on {new Date(note.timestamp).toLocaleDateString()} at {new Date(note.timestamp).toLocaleTimeString()}
-            </p>
-            <p className="text-gray-800 mt-1">{note.note}</p>
-            {isFormEditable && canEditForm && (
-              <button type="button" onClick={() => handleRemoveCoachNote(index)} className="text-red-500 hover:text-red-700 text-sm mt-2">
-                Remove Note
-              </button>
-            )}
-          </div>
-        ))}
-        {isFormEditable && canEditForm && (
-          <div className="flex space-x-2 mt-4">
-            <textarea
-              value={newCoachNote}
-              onChange={(e) => setNewCoachNote(e.target.value)}
-              rows="2"
-              placeholder="Add new coach note..."
-              className="flex-1 border border-gray-300 rounded-md shadow-sm p-2"
-            ></textarea>
-            <button type="button" onClick={handleAddCoachNote} className="bg-indigo-500 text-white p-2 rounded-lg hover:bg-indigo-600 transition">
-              <Plus size={20} />
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Save/Cancel Buttons */}
-      {(isFormEditable || isNew) && (
-        <div className="flex justify-end space-x-4 mt-8">
-          <button
-            type="button"
-            onClick={onClose}
-            className="bg-gray-300 text-gray-800 py-2 px-5 rounded-lg font-semibold shadow-md hover:bg-gray-400 transition"
-            disabled={isLoading}
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="bg-green-600 text-white py-2 px-5 rounded-lg font-semibold shadow-md hover:bg-green-700 transition"
-            disabled={isLoading || !canEditForm} // Only admin can save edits
-          >
-            {isLoading ? 'Saving...' : (isNew ? 'Add Athlete' : 'Save Changes')}
+            </div>
+          ))}
+          <button type="button" onClick={handleAddSkill} className="mt-2 bg-gray-200 text-gray-700 py-1 px-3 rounded-md text-sm hover:bg-gray-300">
+            Add Skill
           </button>
         </div>
-      )}
-    </form>
+
+        {/* Coach Notes Section */}
+        <div className="border border-gray-200 rounded-md p-4">
+          <h4 className="text-lg font-semibold text-gray-800 mb-3">Coach Notes</h4>
+          {coachNotes.map((note, index) => (
+            <div key={index} className="flex justify-between items-center bg-gray-50 p-2 rounded-md mb-2">
+              <span className="text-sm text-gray-700">{note.date}: {note.text}</span>
+              <button type="button" onClick={() => handleRemoveNote(index)} className="text-red-500 hover:text-red-700">
+                <X size={16} />
+              </button>
+            </div>
+          ))}
+          <div className="flex space-x-2 mt-2">
+            <input
+              type="text"
+              placeholder="Add new note"
+              value={newNoteText}
+              onChange={(e) => setNewNoteText(e.target.value)}
+              className="flex-1 border border-gray-300 rounded-md shadow-sm p-2 text-sm"
+            />
+            <button type="button" onClick={handleAddNote} className="bg-blue-500 text-white py-1 px-3 rounded-md text-sm hover:bg-blue-600">
+              Add
+            </button>
+          </div>
+        </div>
+
+        {/* Parent/Emergency Contact Info */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="parentName" className="block text-sm font-medium text-gray-700">Parent/Guardian Name</label>
+            <input type="text" id="parentName" value={parentName} onChange={(e) => setParentName(e.target.value)}
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+          </div>
+          <div>
+            <label htmlFor="parentPhone" className="block text-sm font-medium text-gray-700">Parent/Guardian Phone</label>
+            <input type="tel" id="parentPhone" value={parentPhone} onChange={(e) => setParentPhone(e.target.value)}
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+          </div>
+          <div>
+            <label htmlFor="parentEmail" className="block text-sm font-medium text-gray-700">Parent/Guardian Email</label>
+            <input type="email" id="parentEmail" value={parentEmail} onChange={(e) => setParentEmail(e.target.value)}
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+          </div>
+          <div>
+            <label htmlFor="emergencyContactName" className="block text-sm font-medium text-gray-700">Emergency Contact Name</label>
+            <input type="text" id="emergencyContactName" value={emergencyContactName} onChange={(e) => setEmergencyContactName(e.target.value)}
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+          </div>
+          <div>
+            <label htmlFor="emergencyContactPhone" className="block text-sm font-medium text-gray-700">Emergency Contact Phone</label>
+            <input type="tel" id="emergencyContactPhone" value={emergencyContactPhone} onChange={(e) => setEmergencyContactPhone(e.target.value)}
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+          </div>
+        </div>
+
+        {userRole === 'admin' && ( // Only admin can approve/disapprove
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="isApproved"
+              checked={isApproved}
+              onChange={(e) => setIsApproved(e.target.checked)}
+              className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+            />
+            <label htmlFor="isApproved" className="ml-2 block text-sm text-gray-900">Approved</label>
+          </div>
+        )}
+
+        <div className="flex justify-end space-x-4 pt-4 border-t border-gray-100">
+          <button type="button" onClick={onClose}
+            className="bg-gray-300 text-gray-800 py-2 px-4 rounded-lg font-semibold hover:bg-gray-400 transition">
+            Cancel
+          </button>
+          <button type="submit"
+            className="bg-indigo-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-indigo-700 transition">
+            {isEditing ? 'Save Changes' : 'Add Athlete'}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 };
 
@@ -1906,13 +1567,13 @@ const AddEditAthleteForm = ({ db, currentUserId, onClose, showAppToast, isNew, i
 // --- Coach Management Component ---
 const CoachManagement = ({ db, currentUserId, userRole, showAppToast }) => {
   const [coaches, setCoaches] = useState([]);
+  const [filterText, setFilterText] = useState('');
   const [showAddCoachModal, setShowAddCoachModal] = useState(false);
-  const [selectedCoach, setSelectedCoach] = useState(null);
-  const [isEditingCoach, setIsEditingCoach] = useState(false); // Correctly defined state for CoachManagement
-  const [showDeleteCoachConfirm, setShowDeleteCoachConfirm] = useState(false); // NEW: State for confirmation modal
-  const [coachToDelete, setCoachToDelete] = useState(null); // NEW: Store coach ID for deletion
+  const [editingCoach, setEditingCoach] = useState(null); // null or coach object for editing
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [coachToDelete, setCoachToDelete] = useState(null);
 
-  // Fetch all coaches and listen for real-time updates
+  // Fetch coaches in real-time
   useEffect(() => {
     if (!db || !currentUserId) return;
     const coachesRef = collection(db, privateUserDataPath(currentUserId), COLLECTIONS.COACHES);
@@ -1926,851 +1587,336 @@ const CoachManagement = ({ db, currentUserId, userRole, showAppToast }) => {
     return () => unsubscribe();
   }, [db, currentUserId, showAppToast]);
 
-  const handleApproveCoach = async (coachId) => {
-    const canApprove = userRole === 'admin';
-    if (!canApprove) {
-      showAppToast("Permission denied. Only Admin can approve coaches.", 'error');
-      return;
-    }
-    showAppToast("Approving coach...", 'info');
-    try {
-      const coachDocRef = doc(db, privateUserDataPath(currentUserId), COLLECTIONS.COACHES, coachId);
-      await updateDoc(coachDocRef, { isApproved: true });
-      showAppToast("Coach approved successfully!");
-    } catch (error) {
-      console.error("Error approving coach:", error);
-      showAppToast(`Failed to approve: ${error.message}`, 'error');
-    }
+  const filteredCoaches = coaches.filter(coach =>
+    coach.name.toLowerCase().includes(filterText.toLowerCase()) ||
+    coach.email.toLowerCase().includes(filterText.toLowerCase()) ||
+    coach.teams.some(team => team.toLowerCase().includes(filterText.toLowerCase())) ||
+    coach.classes.some(cls => cls.toLowerCase().includes(filterText.toLowerCase()))
+  );
+
+  const handleAddCoachClick = () => {
+    setEditingCoach(null);
+    setShowAddCoachModal(true);
   };
 
-  // NEW: Function to open confirmation modal
-  const confirmDeleteCoach = (coachId) => {
-    setCoachToDelete(coachId);
-    setShowDeleteCoachConfirm(true);
+  const handleEditCoachClick = (coach) => {
+    setEditingCoach(coach);
+    setShowAddCoachModal(true);
   };
 
-  // NEW: Actual delete logic, called from confirmation modal
-  const executeDeleteCoach = async () => {
-    const canDelete = userRole === 'admin';
-    if (!canDelete || !db || !currentUserId || !coachToDelete) {
-      showAppToast("Permission denied or coach not selected.", 'error');
-      return;
-    }
-    showAppToast("Deleting coach...", 'info');
+  const handleDeleteCoachClick = (coach) => {
+    setCoachToDelete(coach);
+    setConfirmDelete(true);
+  };
+
+  const confirmDeleteCoach = async () => {
+    if (!db || !currentUserId || !coachToDelete) return;
+
     try {
-      const coachDocRef = doc(db, privateUserDataPath(currentUserId), COLLECTIONS.COACHES, coachToDelete);
-      await deleteDoc(coachDocRef);
-      showAppToast("Coach deleted successfully!");
+      await deleteDoc(doc(db, privateUserDataPath(currentUserId), COLLECTIONS.COACHES, coachToDelete.id));
+      showAppToast(`Coach ${coachToDelete.name} deleted successfully!`);
     } catch (error) {
       console.error("Error deleting coach:", error);
-      showAppToast(`Failed to delete: ${error.message}`, 'error');
+      showAppToast(`Failed to delete coach: ${error.message}`, 'error');
     } finally {
-      setShowDeleteCoachConfirm(false);
+      setConfirmDelete(false);
       setCoachToDelete(null);
     }
   };
 
-  const handleOpenEditCoach = (coach) => {
-    const canEdit = userRole === 'admin';
-    if (canEdit) {
-      setSelectedCoach(coach);
-      setIsEditingCoach(true);
-    } else {
-      showAppToast("Only Admin can edit coach profiles.", 'error');
-    }
-  };
-
-  const handleCloseEditCoach = () => {
-    setSelectedCoach(null);
-    setIsEditingCoach(false);
-  };
-
-  const canManageCoaches = userRole === 'admin'; // For general coach management actions
+  if (userRole !== 'admin') {
+    return (
+      <div className="text-center py-10 text-gray-600">
+        <p className="text-lg font-semibold">Admin access required to manage coaches.</p>
+        <p className="text-sm">Please log in as an administrator to view this section.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-4">
-      <h3 className="text-2xl font-bold text-center text-indigo-700 mb-6">Coach Management</h3>
+    <div className="space-y-6">
+      <h3 className="text-2xl font-bold text-gray-800 mb-4">Coach Management</h3>
 
-      <div className="flex justify-end mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
+        <input
+          type="text"
+          placeholder="Filter coaches by name, email, team, or class..."
+          className="w-full sm:w-2/3 px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+          value={filterText}
+          onChange={(e) => setFilterText(e.target.value)}
+        />
         <button
-          onClick={() => setShowAddCoachModal(true)}
-          className="bg-indigo-600 text-white py-2 px-5 rounded-lg font-semibold shadow-md hover:bg-indigo-700 transition duration-300 transform hover:scale-105 flex items-center"
-          disabled={!canManageCoaches}
+          onClick={handleAddCoachClick}
+          className="w-full sm:w-auto bg-indigo-600 text-white py-2 px-6 rounded-lg font-semibold shadow-md hover:bg-indigo-700 flex items-center justify-center transition duration-200"
         >
           <Plus size={20} className="mr-2" /> Add New Coach
-          {!canManageCoaches && <span className="ml-2 text-xs opacity-75"> (Admin Only)</span>}
         </button>
       </div>
 
-      <div className="overflow-x-auto rounded-lg shadow-md border border-gray-200">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teams / Classes</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Passcode</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {coaches.length === 0 ? (
-              <tr>
-                <td colSpan="6" className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">
-                  No coaches found.
-                </td>
-              </tr>
-            ) : (
-              coaches.map(coach => (
-                <tr key={coach.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{coach.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {coach.email}
-                    <br />
-                    {coach.phone}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    Teams: {coach.teams?.join(', ') || 'N/A'}
-                    <br />
-                    Classes: {coach.classes?.join(', ') || 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${coach.isApproved ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                      {coach.isApproved ? 'Approved' : 'Pending'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {coach.passcode}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    {!coach.isApproved && (
-                      <button
-                        onClick={() => handleApproveCoach(coach.id)}
-                        className={`text-green-600 hover:text-green-900 mr-3 ${!canManageCoaches ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        disabled={!canManageCoaches}
-                      >
-                        Approve
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleOpenEditCoach(coach)}
-                      className={`text-indigo-600 hover:text-indigo-900 mr-3 ${!canManageCoaches ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      disabled={!canManageCoaches}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => confirmDeleteCoach(coach.id)}
-                      className={`text-red-600 hover:text-red-900 ${!canManageCoaches ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      disabled={!canManageCoaches}
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      {filteredCoaches.length === 0 ? (
+        <p className="text-center text-gray-600 py-8">No coaches found matching your criteria.</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredCoaches.map(coach => (
+            <div key={coach.id} className="bg-white border border-gray-200 rounded-xl shadow-lg p-6 flex flex-col">
+              <h4 className="text-xl font-bold text-gray-900 mb-2">{coach.name}</h4>
+              <p className="text-gray-700 text-sm mb-1">Email: {coach.email}</p>
+              <p className="text-gray-700 text-sm mb-2">Phone: {coach.phone}</p>
+              <p className="text-gray-700 text-sm mb-2"><span className="font-semibold">Passcode:</span> {coach.passcode}</p>
+              <p className={`text-sm font-semibold mb-2 ${coach.isApproved ? 'text-green-600' : 'text-red-600'}`}>
+                {coach.isApproved ? 'Approved' : 'Pending Approval'}
+              </p>
+              <p className="text-gray-700 text-sm mb-2"><span className="font-semibold">Teams:</span> {coach.teams.join(', ') || 'N/A'}</p>
+              <p className="text-gray-700 text-sm mb-4"><span className="font-semibold">Classes:</span> {coach.classes.join(', ') || 'N/A'}</p>
 
-      <Modal isOpen={showAddCoachModal || isEditingCoach} title={isEditingCoach ? "Edit Coach" : "Add New Coach"} onClose={handleCloseEditCoach} showCloseButton={true}>
-        <AddEditCoachForm
+              <div className="mt-auto flex justify-end space-x-2 pt-4 border-t border-gray-100">
+                <button
+                  onClick={() => handleEditCoachClick(coach)}
+                  className="text-indigo-600 hover:text-indigo-800 transition-colors"
+                  title="Edit Coach"
+                >
+                  <Edit size={20} />
+                </button>
+                <button
+                  onClick={() => handleDeleteCoachClick(coach)}
+                  className="text-red-600 hover:text-red-800 transition-colors"
+                  title="Delete Coach"
+                >
+                  <Trash2 size={20} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showAddCoachModal && (
+        <CoachFormModal
           db={db}
           currentUserId={currentUserId}
-          onClose={handleCloseEditCoach}
           showAppToast={showAppToast}
-          isNew={!isEditingCoach}
-          initialData={selectedCoach}
-          userRole={userRole}
+          onClose={() => setShowAddCoachModal(false)}
+          coachToEdit={editingCoach}
         />
-      </Modal>
+      )}
 
-      {/* NEW: Confirmation Modal for Coach Deletion */}
       <ConfirmationModal
-        isOpen={showDeleteCoachConfirm}
+        isOpen={confirmDelete}
         title="Confirm Deletion"
-        message="Are you sure you want to delete this coach? This action cannot be undone."
-        onConfirm={executeDeleteCoach}
-        onCancel={() => setShowDeleteCoachConfirm(false)}
+        message={`Are you sure you want to delete coach ${coachToDelete?.name}? This action cannot be undone.`}
+        onConfirm={confirmDeleteCoach}
+        onCancel={() => setConfirmDelete(false)}
         confirmText="Delete"
       />
     </div>
   );
 };
 
-// --- Add/Edit Coach Form Component ---
-const AddEditCoachForm = ({ db, currentUserId, onClose, showAppToast, isNew, initialData, userRole }) => {
-  const [formData, setFormData] = useState(initialData || {
-    name: '',
-    email: '',
-    phone: '',
-    teams: [],
-    classes: [],
-    isApproved: isNew ? false : (initialData?.isApproved || false),
-    passcode: ''
-  });
-  const [allTeams, setAllTeams] = useState([]);
-  const [allClasses, setAllClasses] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const canEditCoachForm = userRole === 'admin';
+// --- Coach Form Modal (Add/Edit Coach) ---
+const CoachFormModal = ({ db, currentUserId, showAppToast, onClose, coachToEdit }) => {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [passcode, setPasscode] = useState('');
+  const [teams, setTeams] = useState(''); // Comma-separated string
+  const [classes, setClasses] = useState(''); // Comma-separated string
+  const [isApproved, setIsApproved] = useState(false);
 
-  // Fetch all available teams and classes for multi-select
+  const isEditing = !!coachToEdit;
+
   useEffect(() => {
-    if (!db || !currentUserId) return;
-    const fetchAllEntities = async () => {
-      try {
-        const athletesRef = collection(db, privateUserDataPath(currentUserId), COLLECTIONS.ATHLETES);
-        const querySnapshot = await getDocs(query(athletesRef, where('isApproved', '==', true))); // Only consider approved for existing teams/classes
-        const teamsSet = new Set();
-        const classesSet = new Set();
-        querySnapshot.forEach(docSnap => {
-          docSnap.data().teams?.forEach(t => teamsSet.add(t));
-          docSnap.data().classes?.forEach(c => classesSet.add(c));
-        });
-        setAllTeams(Array.from(teamsSet).sort());
-        setAllClasses(Array.from(classesSet).sort());
-      } catch (error) {
-        console.error("Error fetching all teams/classes for coach form:", error);
-      }
-    };
-    fetchAllEntities();
-  }, [db, currentUserId]);
-
-
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    if (type === 'checkbox') {
-      const { group } = e.target.dataset;
-      let updatedArray = [...formData[group]];
-      if (checked) {
-        updatedArray.push(value);
-      } else {
-        updatedArray = updatedArray.filter(item => item !== value);
-      }
-      setFormData({ ...formData, [group]: updatedArray });
-    } else {
-      setFormData({ ...formData, [name]: value });
+    if (coachToEdit) {
+      setName(coachToEdit.name || '');
+      setEmail(coachToEdit.email || '');
+      setPhone(coachToEdit.phone || '');
+      setPasscode(coachToEdit.passcode || '');
+      setTeams(coachToEdit.teams ? coachToEdit.teams.join(', ') : '');
+      setClasses(coachToEdit.classes ? coachToEdit.classes.join(', ') : '');
+      setIsApproved(coachToEdit.isApproved || false);
     }
-  };
+  }, [coachToEdit]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!canEditCoachForm) {
-      showAppToast("Permission denied. Only Admin can add/edit coaches.", 'error');
+
+    if (!db || !currentUserId) {
+      showAppToast("App not ready.", 'error');
       return;
     }
-    setIsLoading(true);
+
+    const coachData = {
+      name: name.trim(),
+      email: email.trim(),
+      phone: phone.trim(),
+      passcode: passcode.trim(),
+      teams: teams.split(',').map(t => t.trim()).filter(Boolean),
+      classes: classes.split(',').map(c => c.trim()).filter(Boolean),
+      isApproved: isApproved,
+    };
+
     try {
-      const coachesCollectionRef = collection(db, privateUserDataPath(currentUserId), COLLECTIONS.COACHES);
-      if (isNew) {
-        await addDoc(coachesCollectionRef, formData);
-        showAppToast("Coach added successfully!");
+      if (isEditing) {
+        await setDoc(doc(db, privateUserDataPath(currentUserId), COLLECTIONS.COACHES, coachToEdit.id), coachData);
+        showAppToast(`Coach ${name} updated successfully!`);
       } else {
-        const coachDocRef = doc(db, privateUserDataPath(currentUserId), COLLECTIONS.COACHES, initialData.id);
-        await updateDoc(coachDocRef, formData);
-        showAppToast("Coach updated successfully!");
+        // For new coaches, generate a simple ID if none provided, or use a specific one
+        const coachId = `coach-${Date.now()}`; // Simple unique ID
+        await setDoc(doc(db, privateUserDataPath(currentUserId), COLLECTIONS.COACHES, coachId), coachData);
+        showAppToast(`Coach ${name} added successfully!`);
       }
       onClose();
-    }
-    catch (error) {
-      console.error("Error saving coach:", error);
-      showAppToast(`Failed to save coach: ${error.message}`, 'error');
-    } finally {
-      setIsLoading(false);
+    } catch (error) {
+      console.error(`Error ${isEditing ? 'updating' : 'adding'} coach:`, error);
+      showAppToast(`Failed to ${isEditing ? 'update' : 'add'} coach: ${error.message}`, 'error');
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div>
-        <label htmlFor="name" className="block text-sm font-medium text-gray-700">Coach Name</label>
-        <input type="text" name="name" value={formData.name} onChange={handleChange} required
-          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" disabled={!canEditCoachForm} />
-      </div>
-      <div>
-        <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
-        <input type="email" name="email" value={formData.email} onChange={handleChange}
-          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" disabled={!canEditCoachForm} />
-      </div>
-      <div>
-        <label htmlFor="phone" className="block text-sm font-medium text-gray-700">Phone</label>
-        <input type="tel" name="phone" value={formData.phone} onChange={handleChange}
-          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" disabled={!canEditCoachForm} />
-      </div>
-      <div>
-        <label htmlFor="passcode" className="block text-sm font-medium text-gray-700">4-digit Passcode</label>
-        <input type="text" name="passcode" value={formData.passcode} onChange={handleChange} required maxLength="4" pattern="\d{4}"
-          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" disabled={!canEditCoachForm} />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <Modal isOpen={true} title={isEditing ? "Edit Coach Profile" : "Add New Coach"} onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700">Assigned Teams</label>
-          <div className="mt-1 border border-gray-300 rounded-md p-2 max-h-40 overflow-y-auto bg-gray-50">
-            {allTeams.map(team => (
-              <div key={team} className="flex items-center">
-                <input
-                  type="checkbox"
-                  id={`coach-team-${team}`}
-                  name="teams"
-                  value={team}
-                  data-group="teams"
-                  checked={formData.teams.includes(team)}
-                  onChange={handleChange}
-                  className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
-                  disabled={!canEditCoachForm}
-                />
-                <label htmlFor={`coach-team-${team}`} className="ml-2 text-sm text-gray-900">{team}</label>
-              </div>
-            ))}
-            {allTeams.length === 0 && <p className="text-sm text-gray-500">No teams available yet.</p>}
-          </div>
+          <label htmlFor="coachName" className="block text-sm font-medium text-gray-700">Coach Name</label>
+          <input type="text" id="coachName" value={name} onChange={(e) => setName(e.target.value)} required
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Assigned Classes</label>
-          <div className="mt-1 border border-gray-300 rounded-md p-2 max-h-40 overflow-y-auto bg-gray-50">
-            {allClasses.map(cls => (
-              <div key={cls} className="flex items-center">
-                <input
-                  type="checkbox"
-                  id={`coach-class-${cls}`}
-                  name="classes"
-                  value={cls}
-                  data-group="classes"
-                  checked={formData.classes.includes(cls)}
-                  onChange={handleChange}
-                  className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
-                  disabled={!canEditCoachForm}
-                />
-                <label htmlFor={`coach-class-${cls}`} className="ml-2 text-sm text-gray-900">{cls}</label>
-              </div>
-            ))}
-            {allClasses.length === 0 && <p className="text-sm text-gray-500">No classes available yet.</p>}
-          </div>
+          <label htmlFor="coachEmail" className="block text-sm font-medium text-gray-700">Email</label>
+          <input type="email" id="coachEmail" value={email} onChange={(e) => setEmail(e.target.value)} required
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
         </div>
-      </div>
-
-      <div className="flex justify-end space-x-4 mt-8">
-        <button
-          type="button"
-          onClick={onClose}
-          className="bg-gray-300 text-gray-800 py-2 px-5 rounded-lg font-semibold shadow-md hover:bg-gray-400 transition"
-          disabled={isLoading}
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          className="bg-green-600 text-white py-2 px-5 rounded-lg font-semibold shadow-md hover:bg-green-700 transition"
-          disabled={isLoading || !canEditCoachForm}
-        >
-          {isLoading ? 'Saving...' : (isNew ? 'Add Coach' : 'Save Changes')}
-        </button>
-      </div>
-    </form>
+        <div>
+          <label htmlFor="coachPhone" className="block text-sm font-medium text-gray-700">Phone</label>
+          <input type="tel" id="coachPhone" value={phone} onChange={(e) => setPhone(e.target.value)}
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+        </div>
+        <div>
+          <label htmlFor="coachPasscode" className="block text-sm font-medium text-gray-700">Passcode</label>
+          <input type="text" id="coachPasscode" value={passcode} onChange={(e) => setPasscode(e.target.value)} required
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+        </div>
+        <div>
+          <label htmlFor="coachTeams" className="block text-sm font-medium text-gray-700">Teams (comma-separated)</label>
+          <input type="text" id="coachTeams" value={teams} onChange={(e) => setTeams(e.target.value)}
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+        </div>
+        <div>
+          <label htmlFor="coachClasses" className="block text-sm font-medium text-gray-700">Classes (comma-separated)</label>
+          <input type="text" id="coachClasses" value={classes} onChange={(e) => setClasses(e.target.value)}
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+        </div>
+        <div className="flex items-center">
+          <input
+            type="checkbox"
+            id="coachIsApproved"
+            checked={isApproved}
+            onChange={(e) => setIsApproved(e.target.checked)}
+            className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+          />
+          <label htmlFor="coachIsApproved" className="ml-2 block text-sm text-gray-900">Approved</label>
+        </div>
+        <div className="flex justify-end space-x-4 pt-4 border-t border-gray-100">
+          <button type="button" onClick={onClose}
+            className="bg-gray-300 text-gray-800 py-2 px-4 rounded-lg font-semibold hover:bg-gray-400 transition">
+            Cancel
+          </button>
+          <button type="submit"
+            className="bg-indigo-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-indigo-700 transition">
+            {isEditing ? 'Save Changes' : 'Add Coach'}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 };
 
 // --- Check-in Logs Component ---
 const CheckinLogs = ({ db, currentUserId, userRole, showAppToast }) => {
   const [historicalLogs, setHistoricalLogs] = useState([]);
-  const [selectedLog, setSelectedLog] = useState(null);
-  const [isEditingLog, setIsEditingLog] = useState(false); // Correctly defined state for CheckinLogs
-  const [filterAthleteName, setFilterAthleteName] = useState('');
-  const [filterCheckinStatus, setFilterCheckinStatus] = useState('All'); // 'All', 'Checked In', 'Missed'
-  const [filterCategory, setFilterCategory] = useState('All'); // 'All', 'Team', 'Class'
-  const [filterEntity, setFilterEntity] = useState('All'); // Specific team/class name
-  const [allTeams, setAllTeams] = useState([]);
-  const [allClasses, setAllClasses] = useState([]);
+  const [selectedLog, setSelectedLog] = useState(null); // For viewing details of a specific daily log
 
-  // Fetch historical check-in logs
   useEffect(() => {
     if (!db || !currentUserId) return;
     const logsRef = collection(db, publicDataPath, COLLECTIONS.HISTORICAL_CHECKIN_LOGS);
     const unsubscribe = onSnapshot(logsRef, (snapshot) => {
       const fetchedLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      // Sort logs by timestamp (most recent first)
+      // Sort logs by timestamp in descending order (most recent first)
       setHistoricalLogs(fetchedLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
     }, (error) => {
-      console.error("Error fetching historical logs:", error);
+      console.error("Error fetching historical check-in logs:", error);
       showAppToast(`Error loading logs: ${error.message}`, 'error');
     });
     return () => unsubscribe();
   }, [db, currentUserId, showAppToast]);
 
-  // Fetch all available teams and classes for filters
-  useEffect(() => {
-    if (!db || !currentUserId) return;
-    const fetchAllEntities = async () => {
-      try {
-        const athletesRef = collection(db, privateUserDataPath(currentUserId), COLLECTIONS.ATHLETES);
-        const querySnapshot = await getDocs(query(athletesRef, where('isApproved', '==', true)));
-        const teamsSet = new Set();
-        const classesSet = new Set();
-        querySnapshot.forEach(docSnap => {
-          docSnap.data().teams?.forEach(t => teamsSet.add(t));
-          docSnap.data().classes?.forEach(c => classesSet.add(c));
-        });
-        setAllTeams(Array.from(teamsSet).sort());
-        setAllClasses(Array.from(classesSet).sort());
-      } catch (error) {
-        console.error("Error fetching all teams/classes for logs filter:", error);
-      }
-    };
-    fetchAllEntities();
-  }, [db, currentUserId]);
-
-  const handleOpenLog = (log) => {
+  const viewLogDetails = (log) => {
     setSelectedLog(log);
-    setIsEditingLog(false); // Default to view mode when opening log
   };
 
-  const handleCloseLog = () => {
-    setSelectedLog(null);
-    setIsEditingLog(false); // Ensure edit mode is off when closing
-  };
-
-  const handleEditLogToggle = () => {
-    const canEdit = userRole === 'admin';
-    if (canEdit) {
-      setIsEditingLog(prev => !prev);
-    } else {
-      showAppToast("Only Admin can edit check-in logs.", 'error');
-    }
-  };
-
-  const handleRemoveCheckinEvent = (logIndex, eventIndex) => {
-    const canEdit = userRole === 'admin';
-    if (!canEdit) {
-      showAppToast("Permission denied. Only Admin can edit logs.", 'error');
-      return;
-    }
-    const updatedLog = { ...selectedLog };
-    updatedLog.dailyCheckInEvents = updatedLog.dailyCheckInEvents.filter((_, i) => i !== eventIndex);
-    setSelectedLog(updatedLog); // Update local state for immediate UI reflection
-  };
-
-  const handleAddCheckinEvent = async (logId, athleteId, category, entity, timestampStr) => {
-    const canEdit = userRole === 'admin';
-    if (!canEdit) {
-      showAppToast("Permission denied. Only Admin can edit logs.", 'error');
-      return;
-    }
-    const athleteDoc = await getDoc(doc(db, privateUserDataPath(currentUserId), COLLECTIONS.ATHLETES, athleteId));
-    if (!athleteDoc.exists()) {
-        showAppToast("Athlete not found.", 'error');
-        return;
-    }
-    const athleteName = athleteDoc.data().name;
-
-    const newEvent = {
-        athleteId,
-        athleteName,
-        checkInType: category.toLowerCase(),
-        checkInEntity: entity,
-        timestamp: new Date(timestampStr).toISOString(),
-    };
-    const updatedLog = { ...selectedLog, dailyCheckInEvents: [...selectedLog.dailyCheckInEvents, newEvent] };
-    setSelectedLog(updatedLog); // Update local state
-    showAppToast("Event added locally. Remember to save changes.", 'info');
-  };
-
-  const handleSaveLogEdits = async () => {
-    const canSave = userRole === 'admin';
-    if (!canSave) {
-      showAppToast("Permission denied. Only Admin can save log edits.", 'error');
-      return;
-    }
-    if (!selectedLog) return;
-    showAppToast("Saving log changes...", 'info');
-    try {
-      const logDocRef = doc(db, publicDataPath, COLLECTIONS.HISTORICAL_CHECKIN_LOGS, selectedLog.id);
-      await updateDoc(logDocRef, {
-        dailyCheckInEvents: selectedLog.dailyCheckInEvents,
-        lastEdited: new Date().toISOString()
-      });
-      showAppToast("Log updated successfully!");
-      setIsEditingLog(false);
-    } catch (error) {
-      console.error("Error saving log edits:", error);
-      showAppToast(`Failed to save log: ${error.message}`, 'error');
-    }
-  };
-
-  const filteredLogs = historicalLogs.filter(log => {
-    let matches = true;
-
-    // Filter by Entity (Team/Class) and Category if specified
-    if (filterEntity !== 'All' && filterCategory !== 'All') {
-      const isEntityMatch = log.dailyCheckInEvents.some(event =>
-        event.checkInEntity === filterEntity && event.checkInType === filterCategory.toLowerCase()
-      );
-      if (!isEntityMatch) matches = false;
-    } else if (filterCategory !== 'All') { // Only filter by category if entity is 'All'
-      const isCategoryMatch = log.dailyCheckinEvents.some(event =>
-        event.checkInType === filterCategory.toLowerCase()
-      );
-      if (!isCategoryMatch) matches = false;
-    }
-
-    // Filter by Athlete Name
-    if (filterAthleteName) {
-      const lowerCaseFilter = filterAthleteName.toLowerCase();
-      const athleteFoundInLog = log.dailyCheckInEvents.some(event =>
-        event.athleteName.toLowerCase().includes(lowerCaseFilter)
-      );
-      if (!athleteFoundInLog) matches = false;
-    }
-
-    // Handle 'Missed' status: An athlete is 'Missed' if they are assigned to the entity/category
-    // but *not* present in the check-in events for that log. This requires knowing all athletes.
-    // This is complex for a historical log without knowing the exact roster at that past moment.
-    // For now, I'll interpret 'Missed' as: if an athlete is selected in the filter, and *not* found in the events of this log.
-    // This is a simplification due to the complex historical data requirement.
-    if (filterCheckinStatus === 'Missed' && filterAthleteName) {
-      const athleteCheckedInThisLog = log.dailyCheckinEvents.some(event =>
-        event.athleteName.toLowerCase().includes(filterAthleteName.toLowerCase())
-      );
-      if (athleteCheckedInThisLog) matches = false; // If they are in the log, they are not 'missed' for this log filter
-      // If filterAthleteName is empty, 'Missed' isn't really meaningful here without external context.
-    } else if (filterCheckinStatus === 'Checked In' && filterAthleteName) {
-      const athleteCheckedInThisLog = log.dailyCheckinEvents.some(event =>
-        event.athleteName.toLowerCase().includes(filterAthleteName.toLowerCase())
-      );
-      if (!athleteCheckedInThisLog) matches = false;
-    } else if (filterCheckinStatus === 'Checked In' && !filterAthleteName) {
-        // If filter is 'Checked In' but no specific athlete, ensure the log actually has check-ins.
-        if (log.dailyCheckinEvents.length === 0) matches = false;
-    }
-
-    return matches;
-  });
-
-  const canEditLog = userRole === 'admin';
+  if (userRole !== 'admin') {
+    return (
+      <div className="text-center py-10 text-gray-600">
+        <p className="text-lg font-semibold">Admin access required to view check-in logs.</p>
+        <p className="text-sm">Please log in as an administrator to view this section.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-4">
-      <h3 className="text-2xl font-bold text-center text-indigo-700 mb-6">Historical Check-in Logs</h3>
+    <div className="space-y-6">
+      <h3 className="text-2xl font-bold text-gray-800 mb-4">Daily Check-in Logs</h3>
 
-      {/* Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-lg shadow-sm border border-gray-200">
-        <div>
-          <label htmlFor="filterAthlete" className="block text-sm font-medium text-gray-700">Athlete Name</label>
-          <input
-            type="text"
-            id="filterAthlete"
-            value={filterAthleteName}
-            onChange={(e) => setFilterAthleteName(e.target.value)}
-            placeholder="Filter by athlete name"
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-          />
+      {historicalLogs.length === 0 ? (
+        <p className="text-center text-gray-600 py-8">No historical check-in logs available.</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {historicalLogs.map(log => (
+            <div key={log.id} className="bg-white border border-gray-200 rounded-xl shadow-lg p-6 flex flex-col">
+              <h4 className="text-lg font-bold text-gray-900 mb-2">
+                Log Date: {new Date(log.timestamp).toLocaleDateString()}
+              </h4>
+              <p className="text-gray-700 text-sm mb-2">
+                Reset By: {log.resetByUserId || 'N/A'}
+              </p>
+              <p className="text-gray-700 text-sm mb-4">
+                Total Check-ins: {log.dailyCheckInEvents?.length || 0}
+              </p>
+              <div className="mt-auto flex justify-end">
+                <button
+                  onClick={() => viewLogDetails(log)}
+                  className="bg-indigo-500 text-white py-2 px-4 rounded-lg font-semibold text-sm hover:bg-indigo-600 transition"
+                >
+                  View Details
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
-        <div>
-          <label htmlFor="filterStatus" className="block text-sm font-medium text-gray-700">Status</label>
-          <select
-            id="filterStatus"
-            value={filterCheckinStatus}
-            onChange={(e) => setFilterCheckinStatus(e.target.value)}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-          >
-            <option value="All">All</option>
-            <option value="Checked In">Checked In</option>
-            {/* The "Missed" filter logic would be very complex and require external context (full roster of that day).
-                For now, I'll interpret 'Missed' as: if an athlete is selected in the filter, and *not* found in the events of this log.
-                This is a simplification due to the complex historical data requirement.
-            <option value="Missed">Missed (requires athlete name filter)</option>
-            */}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="filterCategory" className="block text-sm font-medium text-gray-700">Category</label>
-          <select
-            id="filterCategory"
-            value={filterCategory}
-            onChange={(e) => { setFilterCategory(e.target.value); setFilterEntity('All'); }}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-          >
-            <option value="All">All</option>
-            <option value="Team">Team</option>
-            <option value="Class">Class</option>
-          </select>
-        </div>
-        {(filterCategory === 'Team' || filterCategory === 'Class') && (
-          <div>
-            <label htmlFor="filterEntity" className="block text-sm font-medium text-gray-700">{filterCategory} Name</label>
-            <select
-              id="filterEntity"
-              value={filterEntity}
-              onChange={(e) => setFilterEntity(e.target.value)}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-            >
-              <option value="All">All {filterCategory}s</option>
-              {(category === 'Team' ? allTeams : allClasses).map(ent => (
-                <option key={ent} value={ent}>{ent}</option>
-              ))}
-            </select>
-          </div>
-        )}
-      </div>
-
-      <div className="overflow-x-auto rounded-lg shadow-md border border-gray-200">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reset Timestamp</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reset By User ID</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entries Count</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredLogs.length === 0 ? (
-              <tr>
-                <td colSpan="4" className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">
-                  No historical check-in logs found matching your filters.
-                </td>
-              </tr>
-            ) : (
-              filteredLogs.map(log => (
-                <tr key={log.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {new Date(log.timestamp).toLocaleString()}
-                    {log.lastEdited && <span className="block text-xs text-gray-500 italic">(Edited {new Date(log.lastEdited).toLocaleString()})</span>}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{log.resetByUserId}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{log.dailyCheckInEvents?.length || 0}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      onClick={() => handleOpenLog(log)}
-                      className="text-indigo-600 hover:text-indigo-900 mr-3"
-                    >
-                      View Details
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      )}
 
       {selectedLog && (
-        <Modal isOpen={!!selectedLog} title="Check-in Log Details" onClose={handleCloseLog} showCloseButton={true}>
-          <div className="flex justify-end mb-4">
-            <button
-              onClick={handleEditLogToggle}
-              className={`py-2 px-4 rounded-lg flex items-center transition duration-200
-                ${isEditingLog ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-indigo-500 text-white hover:bg-indigo-600'}
-                ${!canEditLog ? 'opacity-50 cursor-not-allowed' : ''}
-              `}
-              disabled={!canEditLog}
-            >
-              {isEditingLog ? <X size={18} className="mr-2" /> : <Edit size={18} className="mr-2" />}
-              {isEditingLog ? 'Cancel Edit' : 'Edit Log'}
-            </button>
-          </div>
-          <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
-            <p className="text-gray-700"><strong>Reset At:</strong> {new Date(selectedLog.timestamp).toLocaleString()}</p>
-            <p className="text-gray-700"><strong>Reset By:</strong> {selectedLog.resetByUserId}</p>
-            {selectedLog.lastEdited && <p className="text-gray-700"><strong>Last Edited:</strong> {new Date(selectedLog.lastEdited).toLocaleString()}</p>}
-
-            <h4 className="text-lg font-semibold text-gray-800 mt-6 mb-2">Check-in Events</h4>
+        <Modal isOpen={true} title={`Check-in Log Details for ${new Date(selectedLog.timestamp).toLocaleDateString()}`} onClose={() => setSelectedLog(null)}>
+          <div className="max-h-[60vh] overflow-y-auto">
+            <p className="text-gray-700 mb-4"><strong>Total Athletes Checked In:</strong> {selectedLog.dailyCheckInEvents?.length || 0}</p>
             {selectedLog.dailyCheckInEvents && selectedLog.dailyCheckInEvents.length > 0 ? (
-              <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Athlete</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entity</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-                      {isEditingLog && <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>}
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {selectedLog.dailyCheckInEvents.map((event, index) => (
-                      <tr key={index}>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{event.athleteName}</td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{event.checkInType}</td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{event.checkInEntity}</td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{new Date(event.timestamp).toLocaleTimeString()}</td>
-                        {isEditingLog && (
-                          <td className="px-4 py-2 whitespace-nowrap">
-                            <button
-                              onClick={() => handleRemoveCheckinEvent(selectedLog.id, index)}
-                              className="text-red-600 hover:text-red-900"
-                              disabled={!canEditLog}
-                            >
-                              Remove
-                            </button>
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <ul className="divide-y divide-gray-200 border border-gray-200 rounded-lg">
+                {selectedLog.dailyCheckInEvents.map((event, index) => (
+                  <li key={index} className="p-3">
+                    <p className="font-semibold text-gray-800">{event.athleteName}</p>
+                    <p className="text-sm text-gray-600">
+                      Type: <span className="capitalize">{event.checkInType}</span>, Entity: {event.checkInEntity}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Time: {new Date(event.timestamp).toLocaleTimeString()}
+                    </p>
+                  </li>
+                ))}
+              </ul>
             ) : (
-              <p className="text-gray-600">No check-in events recorded for this log.</p>
-            )}
-
-            {isEditingLog && (
-                <AddCheckinEventForm
-                    db={db}
-                    currentUserId={currentUserId}
-                    onAddEvent={(athleteId, category, entity, timestamp) => handleAddCheckinEvent(selectedLog.id, athleteId, category, entity, timestamp)}
-                    showAppToast={showAppToast}
-                />
-            )}
-
-            {isEditingLog && (
-              <div className="flex justify-end space-x-4 mt-8">
-                <button
-                  type="button"
-                  onClick={handleCloseLog} // Closes modal without saving
-                  className="bg-gray-300 text-gray-800 py-2 px-5 rounded-lg font-semibold shadow-md hover:bg-gray-400 transition"
-                >
-                  Discard Changes
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveLogEdits}
-                  className="bg-green-600 text-white py-2 px-5 rounded-lg font-semibold shadow-md hover:bg-green-700 transition"
-                  disabled={!canEditLog}
-                >
-                  Save Changes
-                </button>
-              </div>
+              <p className="text-gray-600 text-center">No check-ins recorded for this log.</p>
             )}
           </div>
         </Modal>
       )}
     </div>
   );
-};
-
-// --- Add Check-in Event Form for Logs ---
-const AddCheckinEventForm = ({ db, currentUserId, onAddEvent, showAppToast }) => {
-    const [athleteId, setAthleteId] = useState('');
-    const [category, setCategory] = useState('');
-    const [entity, setEntity] = useState('');
-    const [timestamp, setTimestamp] = useState('');
-    const [allAthletes, setAllAthletes] = useState([]);
-    const [allTeams, setAllTeams] = useState([]);
-    const [allClasses, setAllClasses] = useState([]);
-
-    useEffect(() => {
-        if (!db || !currentUserId) return;
-        const fetchAllData = async () => {
-            try {
-                // Fetch all approved athletes
-                const athletesRef = collection(db, privateUserDataPath(currentUserId), COLLECTIONS.ATHLETES);
-                const approvedAthletesSnap = await getDocs(query(athletesRef, where('isApproved', '==', true)));
-                setAllAthletes(approvedAthletesSnap.docs.map(doc => ({ id: doc.id, name: doc.data().name })));
-
-                // Collect all teams and classes from athletes
-                const teamsSet = new Set();
-                const classesSet = new Set();
-                approvedAthletesSnap.docs.forEach(docSnap => {
-                    docSnap.data().teams?.forEach(t => teamsSet.add(t));
-                    docSnap.data().classes?.forEach(c => classesSet.add(c));
-                });
-                setAllTeams(Array.from(teamsSet).sort());
-                setAllClasses(Array.from(classesSet).sort());
-            } catch (error) {
-                console.error("Error fetching data for AddCheckinEventForm:", error);
-                showAppToast(`Error loading data: ${error.message}`, 'error');
-            }
-        };
-        fetchAllData();
-    }, [db, currentUserId, showAppToast]);
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (!athleteId || !category || !entity || !timestamp) {
-            showAppToast("Please fill all fields.", 'error');
-            return;
-        }
-        onAddEvent(athleteId, category, entity, timestamp);
-        // Clear form after adding
-        setAthleteId('');
-        setCategory('');
-        setEntity('');
-        setTimestamp('');
-    };
-
-    return (
-        <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <h5 className="text-md font-semibold text-blue-800 mb-4">Manually Add Check-in Event</h5>
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label htmlFor="addAthlete" className="block text-sm font-medium text-gray-700">Athlete</label>
-                    <select
-                        id="addAthlete"
-                        value={athleteId}
-                        onChange={(e) => setAthleteId(e.target.value)}
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-                        required
-                    >
-                        <option value="">Select Athlete</option>
-                        {allAthletes.map(athlete => (
-                            <option key={athlete.id} value={athlete.id}>{athlete.name}</option>
-                        ))}
-                    </select>
-                </div>
-                <div>
-                    <label htmlFor="addCategory" className="block text-sm font-medium text-gray-700">Category</label>
-                    <select
-                        id="addCategory"
-                        value={category}
-                        onChange={(e) => { setCategory(e.target.value); setEntity(''); }}
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-                        required
-                    >
-                        <option value="">Select Category</option>
-                        <option value="Team">Team</option>
-                        <option value="Class">Class</option>
-                    </select>
-                </div>
-                {(category === 'Team' || category === 'Class') && (
-                    <div>
-                        <label htmlFor="addEntity" className="block text-sm font-medium text-gray-700">{category} Name</label>
-                        <select
-                            id="addEntity"
-                            value={entity}
-                            onChange={(e) => setEntity(e.target.value)}
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-                            required
-                        >
-                            <option value="">Select {category}</option>
-                            {(category === 'Team' ? allTeams : allClasses).map(ent => (
-                                <option key={ent} value={ent}>{ent}</option>
-                            ))}
-                        </select>
-                    </div>
-                )}
-                <div>
-                    <label htmlFor="addTimestamp" className="block text-sm font-medium text-gray-700">Timestamp</label>
-                    <input
-                        type="datetime-local"
-                        id="addTimestamp"
-                        value={timestamp}
-                        onChange={(e) => setTimestamp(e.target.value)}
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-                        required
-                    />
-                </div>
-                <div className="md:col-span-2 flex justify-end">
-                    <button
-                        type="submit"
-                        className="bg-indigo-500 text-white py-2 px-4 rounded-lg font-semibold hover:bg-indigo-600 transition flex items-center"
-                    >
-                        <Plus size={18} className="mr-2" /> Add Event
-                    </button>
-                </div>
-            </form>
-        </div>
-    );
 };
