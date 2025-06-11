@@ -3,9 +3,10 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  base: './',
+  // IMPORTANT: The base path is crucial for GitHub Pages subfolder deployment
+  base: './', 
   build: {
-    chunkSizeWarningLimit: 1500,
+    chunkSizeWarningLimit: 1500, // Helps manage bundle size warnings.
   },
-  // css: { ... } // This block should NOT be present or should be fully commented out
+  // IMPORTANT: No 'css' block for postcss here. Vite will auto-detect postcss.config.cjs.
 });

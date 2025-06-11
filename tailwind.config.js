@@ -2,7 +2,7 @@
 export default {
   content: [
     "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}", // CRUCIAL: This line tells Tailwind to scan your React files
+    "./src/**/*.{js,ts,jsx,tsx}", // CRITICAL: This tells Tailwind where your classes are!
   ],
   theme: {
     extend: {},
