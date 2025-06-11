@@ -1897,7 +1897,7 @@ const CheckinLogs = ({ db, currentUserId, userRole, showAppToast }) => {
         <Modal isOpen={true} title={`Check-in Log Details for ${new Date(selectedLog.timestamp).toLocaleDateString()}`} onClose={() => setSelectedLog(null)}>
           <div className="max-h-[60vh] overflow-y-auto">
             <p className="text-gray-700 mb-4"><strong>Total Athletes Checked In:</strong> {selectedLog.dailyCheckInEvents?.length || 0}</p>
-            {selectedLog.dailyCheckInEvents && selectedLog.dailyCheckinEvents.length > 0 ? (
+            {selectedLog.dailyCheckinEvents && selectedLog.dailyCheckinEvents.length > 0 ? (
               <ul className="divide-y divide-gray-200 border border-gray-200 rounded-lg">
                 {selectedLog.dailyCheckInEvents.map((event, index) => (
                   <li key={index} className="p-3">
