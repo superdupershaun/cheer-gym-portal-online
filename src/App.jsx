@@ -7,15 +7,22 @@ import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnap
 import { User, Users, Calendar, Settings, ChevronLeft, CheckCircle2, XCircle, BarChart2, Plus, Edit, Trash2, Camera, Image, X } from 'lucide-react';
 
 // --- Global Firebase and App Constants ---
-// Use the Firebase configuration provided by the Canvas environment
-const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+// IMPORTANT: REPLACE THESE WITH YOUR ACTUAL FIREBASE CONFIGURATION.
+// Go to your Firebase Project Settings -> "Your apps" section to find these values.
+const firebaseConfig = {
+  apiKey: "AIzaSyCCS1fFfmH4Y4tXn6Rv7w4baNYrz5VSFLG",
+  authDomain: "gym-check-in-d1bf5.firebaseapp.com",
+  projectId: "gym-check-in-d1bf5",
+  storageBucket: "gym-check-in-d1bf5.firebase.app",
+  messagingSenderId: "667813844333",
+  appId: "1:667813844333:web:84e6746664e0540c933664",
+  measurementId: "G-K7WD5R8DDB"
+};
 
-// Use the app ID provided by the Canvas environment, with a fallback
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
-// Use the initial auth token provided by the Canvas environment, with a fallback
-const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
+// We will use the projectId from your Firebase config as the appId for consistent Firestore paths
+const appId = firebaseConfig.projectId;
+// Set to null unless you are using a specific custom token from a Canvas environment
+const initialAuthToken = null;
 
 // --- Firebase Initialization ---
 let app;
@@ -23,14 +30,9 @@ let db;
 let auth;
 
 try {
-  // Ensure firebaseConfig is not empty before initializing
-  if (Object.keys(firebaseConfig).length > 0 && firebaseConfig.projectId) {
-    app = initializeApp(firebaseConfig);
-    db = getFirestore(app);
-    auth = getAuth(app);
-  } else {
-    console.error("Firebase configuration is missing or incomplete. Cannot initialize Firebase.");
-  }
+  app = initializeApp(firebaseConfig);
+  db = getFirestore(app);
+  auth = getAuth(app);
 } catch (error) {
   console.error("Firebase initialization error:", error);
   // Fallback or error display if Firebase fails to initialize
@@ -166,9 +168,7 @@ export default function App() {
   useEffect(() => {
     // Only proceed if app and auth objects are available
     if (!app || !auth) {
-      console.error("Firebase app or auth not initialized. Please check Firebase configuration.");
-      // Set authReady to true if Firebase isn't configured, to allow UI to proceed (though data won't work)
-      setIsAuthReady(true);
+      console.error("Firebase app or auth not initialized.");
       return;
     }
 
@@ -195,7 +195,7 @@ export default function App() {
     });
 
     return () => unsubscribe(); // Cleanup auth listener
-  }, [auth]); // Depend on 'auth' to re-run if it becomes available later
+  }, []); // Empty dependency array ensures this runs once on mount
 
   // --- Data Seeding Logic ---
   const seedInitialData = async (uid) => {
@@ -233,10 +233,9 @@ export default function App() {
 
   // --- Login Logic ---
   const handleLogin = async (passcode) => {
-    // Ensure auth and db are initialized before attempting login
-    if (!auth || !db || !currentUserId) {
-      showAppToast("App is not fully initialized. Please wait or check console for Firebase errors.", 'error');
-      return false;
+    if (!db || !currentUserId) {
+      showAppToast("App not ready. Please wait.", 'error');
+      return false; // Changed to return boolean consistently
     }
 
     if (passcode === MASTER_PASSCODE) {
@@ -862,7 +861,7 @@ const CoachDashboard = ({ db, currentUserId, userRole, showAppToast }) => {
           {isResetting && (
             <div
               className="absolute inset-0 bg-red-800 opacity-50 z-0 transition-all duration-50"
-              style={{ width: `${resetProgress}%` }} // FIX: Use resetProgress here
+              style={{ width: `${progress}%` }}
             ></div>
           )}
           <span className="relative z-10">
@@ -1471,24 +1470,16 @@ const AddEditAthleteForm = ({ db, currentUserId, onClose, showAppToast, isNew, i
       // Fetch current coach's name
       let coachName = "Unknown Coach";
       try {
-        // Only attempt to fetch coach name if auth and db are initialized
-        if (auth && db) {
-          const coachesRef = collection(db, privateUserDataPath(currentUserId), COLLECTIONS.COACHES);
-          // Try to find coach by current user's UID first if authenticated
-          if (auth.currentUser?.uid) {
-            const coachDoc = await getDoc(doc(coachesRef, auth.currentUser.uid));
-            if (coachDoc.exists()) {
-              coachName = coachDoc.data().name;
-            }
-          }
-          // Fallback if not found by UID or if not logged in as a specific coach,
-          // check if current user is admin (MASTER_PASSCODE)
-          if (coachName === "Unknown Coach" && userRole === 'admin') {
-            const q = query(coachesRef, where('passcode', '==', MASTER_PASSCODE)); // Assuming master passcode is tied to a coach
-            const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) {
-              coachName = querySnapshot.docs[0].data().name;
-            }
+        const coachesRef = collection(db, privateUserDataPath(currentUserId), COLLECTIONS.COACHES);
+        const q = query(coachesRef, where('passcode', '==', MASTER_PASSCODE)); // Assuming master passcode for admin, or fetch by currentUserId's coach doc
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          coachName = querySnapshot.docs[0].data().name;
+        } else {
+          // If not master admin, find user's coach name by their ID if authenticated as a specific coach
+          const coachDoc = await getDoc(doc(db, privateUserDataPath(currentUserId), COLLECTIONS.COACHES, auth.currentUser?.uid));
+          if(coachDoc.exists()) {
+            coachName = coachDoc.data().name;
           }
         }
       } catch (e) {
@@ -1566,24 +1557,16 @@ const AddEditAthleteForm = ({ db, currentUserId, onClose, showAppToast, isNew, i
       let coachName = "Unknown Coach";
       // Try to get current coach's name if not an admin
       try {
-        // Only attempt to fetch coach name if auth and db are initialized
-        if (auth && db) {
-          const coachesRef = collection(db, privateUserDataPath(currentUserId), COLLECTIONS.COACHES);
-          // Try to find coach by current user's UID first if authenticated
-          if (auth.currentUser?.uid) {
-            const coachDoc = await getDoc(doc(coachesRef, auth.currentUser.uid));
-            if (coachDoc.exists()) {
-              coachName = coachDoc.data().name;
-            }
-          }
-          // Fallback if not found by UID or if not logged in as a specific coach,
-          // check if current user is admin (MASTER_PASSCODE)
-          if (coachName === "Unknown Coach" && userRole === 'admin') {
-            const q = query(coachesRef, where('passcode', '==', MASTER_PASSCODE));
-            const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) {
-              coachName = querySnapshot.docs[0].data().name;
-            }
+        const coachesRef = collection(db, privateUserDataPath(currentUserId), COLLECTIONS.COACHES);
+        const q = query(coachesRef, where('passcode', '==', MASTER_PASSCODE)); // Assuming master passcode for admin, or fetch by currentUserId's coach doc
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          coachName = querySnapshot.docs[0].data().name;
+        } else {
+          // If not master admin, find user's coach name by their ID if authenticated as a specific coach
+          const coachDoc = await getDoc(doc(db, privateUserDataPath(currentUserId), COLLECTIONS.COACHES, auth.currentUser?.uid));
+          if(coachDoc.exists()) {
+            coachName = coachDoc.data().name;
           }
         }
       } catch (e) {
