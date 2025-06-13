@@ -4,7 +4,7 @@ import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged }
 import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs } from 'firebase/firestore';
 
 // Lucide React icons for a modern look
-import { User, Users, Calendar, Settings, ChevronLeft, CheckCircle2, XCircle, BarChart2, Plus, Edit, Trash2, Camera, Image, X } from 'lucide-react';
+import { User, Users, Calendar, Settings, ChevronLeft, CheckCircle2, XCircle, BarChart2, Plus, Edit, Trash2, Tag, BookOpen, Layers, GraduationCap, X, Smartphone, Tablet, Monitor } from 'lucide-react';
 
 // --- Global Firebase and App Constants ---
 // Use the Firebase configuration provided by the Canvas environment
@@ -28,54 +28,100 @@ const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
 
-// --- Firebase Initialization ---
+
+// Firebase app, database, and auth instances will be initialized once.
 let app;
 let db;
 let auth;
 
-try {
-  // Ensure firebaseConfig is not empty before initializing
-  if (Object.keys(firebaseConfig).length > 0 && firebaseConfig.projectId) {
-    app = initializeApp(firebaseConfig);
-    db = getFirestore(app);
-    auth = getAuth(app);
-  } else {
-    console.error("Firebase configuration is missing or incomplete. Cannot initialize Firebase.");
-  }
-} catch (error) {
-  console.error("Firebase initialization error:", error);
-  // Fallback or error display if Firebase fails to initialize
-}
+// --- Firestore Collection Paths and Names (Global Constants) ---
+// Define public data path based on the application ID.
+const PUBLIC_DATA_PATH = `/artifacts/${appId}/public/data`;
+// Define private user data path as a function that takes the user ID.
+const PRIVATE_USER_DATA_PATH = (userId) => `/artifacts/${appId}/users/${userId}`;
 
-// --- Firestore Collection Paths ---
-const publicDataPath = `/artifacts/${appId}/public/data`;
-const privateUserDataPath = (userId) => `/artifacts/${appId}/users/${userId}`;
-
+// Centralized collection names for Firestore.
 const COLLECTIONS = {
   ATHLETES: 'athletes',
   COACHES: 'coaches',
   CURRENT_CHECKINS: 'current_checkins',
   HISTORICAL_CHECKIN_LOGS: 'historical_checkin_logs',
-  APP_METADATA: 'app_metadata' // For seeding check
+  APP_METADATA: 'app_metadata',
+  LOOKUP_CATEGORIES: 'lookup_categories',
+  LOOKUP_ENTITIES: 'lookup_entities',
 };
 
-// --- Seed Data ---
+// Seed Data (Reverted to original structure)
 const initialSeedData = {
+  categories: [
+    { id: 'team', name: 'Team', icon: 'Users' },
+    { id: 'class', name: 'Class', icon: 'BookOpen' },
+    { id: 'rec', name: 'Rec', icon: 'Tag' },
+    { id: 'training', name: 'Training', icon: 'Calendar' }
+  ],
+  entities: [
+    { id: 'sparkle-squad', name: 'Sparkle Squad', categoryId: 'team' },
+    { id: 'power-pumas', name: 'Power Pumas', categoryId: 'team' },
+    { id: 'tumble-basics', name: 'Tumble Basics', categoryId: 'class' },
+    { id: 'jump-drills', name: 'Jump Drills', categoryId: 'class' },
+    { id: 'weekend-warriors', categoryId: 'rec', name: 'Weekend Warriors' },
+    { id: 'conditioning-101', categoryId: 'training', name: 'Conditioning 101' }
+  ],
   coaches: [
-    { id: 'coach-alex', name: 'Coach Alex', email: 'alex@cheergym.com', phone: '555-111-2222', teams: ['Sparkle Squad', 'Power Pumas'], classes: ['Tumble Basics'], isApproved: true, passcode: '1234' },
-    { id: 'coach-jessica', name: 'Coach Jessica', email: 'jessica@cheergym.com', phone: '555-333-4444', teams: ['Power Pumas'], classes: ['Jump Drills'], isApproved: true, passcode: '0000' },
+    { id: 'coach-alex', name: 'Coach Alex', email: 'alex@cheergym.com', phone: '5551112222', associatedEntities: [{ id: 'sparkle-squad', name: 'Sparkle Squad', categoryId: 'team' }, { id: 'power-pumas', name: 'Power Pumas', categoryId: 'team' }, { id: 'tumble-basics', name: 'Tumble Basics', categoryId: 'class' }], isApproved: true, passcode: '1234' },
+    { id: 'coach-jessica', name: 'Coach Jessica', email: 'jessica@cheergym.com', phone: '5553334444', associatedEntities: [{ id: 'power-pumas', name: 'Power Pumas', categoryId: 'team' }, { id: 'jump-drills', name: 'Jump Drills', categoryId: 'class' }], isApproved: true, passcode: '0000' },
   ],
   athletes: [
-    { id: 'athlete-1', name: 'Emily Smith', teams: ['Sparkle Squad', 'Power Pumas'], classes: ['Tumble Basics'], skills: [{ name: 'Back Handspring', status: 'Working On' }], improvementAreas: 'Needs stronger jumps.', coachNotes: [], parentName: 'Sarah Smith', parentPhone: '555-123-4567', parentEmail: 'sarah@example.com', emergencyContactName: 'John Smith', emergencyContactPhone: '555-765-4321', isApproved: true, addedByCoach: 'Coach Alex', profilePicture: 'https://placehold.co/100x100/A0DAFB/FFFFFF?text=ES' },
-    { id: 'athlete-2', name: 'Mia Johnson', teams: ['Sparkle Squad'], classes: ['Jump Drills'], skills: [{ name: 'Round-off', status: 'Mastered' }], improvementAreas: 'More flexibility.', coachNotes: [], parentName: 'David Johnson', parentPhone: '555-987-6543', parentEmail: 'david@example.com', emergencyContactName: 'Laura Johnson', emergencyContactPhone: '555-432-1098', isApproved: true, addedByCoach: 'Coach Jessica', profilePicture: 'https://placehold.co/100x100/F0B27A/FFFFFF?text=MJ' },
-    { id: 'athlete-3', name: 'Olivia Brown', teams: ['Power Pumas'], classes: ['Tumble Basics'], skills: [{ name: 'Flyer Skills', status: 'Not Started' }], improvementAreas: 'Build confidence.', coachNotes: [], parentName: 'Robert Brown', parentPhone: '555-555-1212', parentEmail: 'robert@example.com', emergencyContactName: 'Maria Brown', emergencyContactPhone: '555-212-5555', isApproved: true, addedByCoach: 'Coach Alex', profilePicture: 'https://placehold.co/100x100/96CEB4/FFFFFF?text=OB' },
-    { id: 'athlete-pending-1', name: 'Sophia Miller', teams: ['Sparkle Squad'], classes: [], skills: [], improvementAreas: '', coachNotes: [], parentName: 'Chris Miller', parentPhone: '555-100-2000', parentEmail: 'chris@example.com', emergencyContactName: 'Pat Miller', emergencyContactPhone: '555-200-1000', isApproved: false, addedByCoach: 'Coach Alex', profilePicture: 'https://placehold.co/100x100/DBE2EF/36454F?text=SM' },
+    { id: 'athlete-1', name: 'Emily Smith', associatedEntities: [{ id: 'sparkle-squad', name: 'Sparkle Squad', categoryId: 'team' }, { id: 'power-pumas', name: 'Power Pumas', categoryId: 'team' }, { id: 'tumble-basics', name: 'Tumble Basics', categoryId: 'class' }], skills: [{ name: 'Back Handspring', status: 'Working On' }], improvementAreas: 'Needs stronger jumps.', coachNotes: [{ date: '2023-10-26', text: 'Great improvement on conditioning.' }], isApproved: true, addedByCoach: 'Coach Alex', profilePicture: 'https://placehold.co/100x100/A0DAFB/FFFFFF?text=ES' },
+    { id: 'athlete-2', name: 'Mia Johnson', associatedEntities: [{ id: 'sparkle-squad', name: 'Sparkle Squad', categoryId: 'team' }, { id: 'jump-drills', name: 'Jump Drills', categoryId: 'class' }], skills: [{ name: 'Round-off', status: 'Mastered' }], improvementAreas: 'More flexibility.', coachNotes: [{ date: '2023-11-01', text: 'Showing leadership qualities.' }], isApproved: true, addedByCoach: 'Coach Jessica', profilePicture: 'https://placehold.co/100x100/F0B27A/FFFFFF?text=MJ' },
+    { id: 'athlete-3', name: 'Olivia Brown', associatedEntities: [{ id: 'power-pumas', name: 'Power Pumas', categoryId: 'team' }, { id: 'tumble-basics', name: 'Tumble Basics', categoryId: 'class' }], skills: [{ name: 'Flyer Skills', status: 'Not Started' }], improvementAreas: 'Build confidence.', coachNotes: [], isApproved: true, addedByCoach: 'Coach Alex', profilePicture: 'https://placehold.co/100x100/96CEB4/FFFFFF?text=OB' },
+    { id: 'athlete-pending-1', name: 'Sophia Miller', associatedEntities: [], skills: [], improvementAreas: '', coachNotes: [], isApproved: false, addedByCoach: 'Coach Alex', profilePicture: 'https://placehold.co/100x100/DBE2EF/36454F?text=SM' },
   ],
 };
 
 const MASTER_PASSCODE = 'cheer123'; // Master admin passcode
 
+// --- Utility Functions ---
+
+// Formats a 10-digit phone number string into ###-###-####
+const formatPhoneNumber = (phoneNumberString) => {
+  if (!phoneNumberString) return '';
+  const cleaned = ('' + phoneNumberString).replace(/\D/g, ''); // Remove non-digits
+  const match = cleaned.match(/^(\d{3})(\d{3})(\d{4})$/);
+  if (match) {
+    return `${match[1]}-${match[2]}-${match[3]}`;
+  }
+  return cleaned; // Return cleaned if no match (e.g., incomplete)
+};
+
 // --- Utility Components ---
+
+// Map icon names to Lucide React components
+const Icon = ({ name, size = 20, className = "" }) => {
+  const icons = {
+    User: User,
+    Users: Users,
+    Calendar: Calendar,
+    Settings: Settings,
+    ChevronLeft: ChevronLeft,
+    CheckCircle2: CheckCircle2,
+    XCircle: XCircle,
+    BarChart2: BarChart2,
+    Plus: Plus,
+    Edit: Edit,
+    Trash2: Trash2,
+    Tag: Tag,
+    BookOpen: BookOpen,
+    Layers: Layers,
+    GraduationCap: GraduationCap,
+    X: X,
+    Smartphone: Smartphone,
+    Tablet: Tablet,
+    Monitor: Monitor,
+  };
+  const LucideIcon = icons[name];
+  return LucideIcon ? <LucideIcon size={size} className={className} /> : null;
+};
 
 // A simple loading spinner component
 const LoadingSpinner = () => (
@@ -89,8 +135,10 @@ const LoadingSpinner = () => (
 const Modal = ({ isOpen, title, children, onClose, showCloseButton = true }) => {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-auto relative transform transition-all scale-100 opacity-100">
+    // Click outside to close the modal
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4" onClick={onClose}>
+      {/* Prevent clicks inside the modal content from closing the modal */}
+      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-auto relative transform transition-all scale-100 opacity-100" onClick={e => e.stopPropagation()}>
         <h3 className="text-xl font-bold text-gray-800 mb-4">{title}</h3>
         {children}
         {showCloseButton && (
@@ -127,7 +175,7 @@ const ToastNotification = ({ message, type, onClose }) => {
   );
 };
 
-// NEW: Generic Confirmation Modal Component
+// Generic Confirmation Modal Component
 const ConfirmationModal = ({ isOpen, title, message, onConfirm, onCancel, confirmText = 'Confirm', cancelText = 'Cancel' }) => {
   if (!isOpen) return null;
   return (
@@ -157,10 +205,13 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [userRole, setUserRole] = useState('none'); // 'none', 'coach', 'admin'
-  const [isAuthReady, setIsAuthReady] = useState(false); // Tracks Firebase auth readiness
+  const [loggedInUserName, setLoggedInUserName] = useState(null); // Stores "Admin" or Coach's actual name
+  const [isAuthReady, setIsAuthReady] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState('success');
+  const [firebaseInitError, setFirebaseInitError] = useState(null);
+  const [deviceType, setDeviceType] = useState('pc'); // 'phone', 'tablet', 'pc'
 
   const showAppToast = useCallback((message, type = 'success', duration = 3000) => {
     setToastMessage(message);
@@ -173,64 +224,37 @@ export default function App() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Firebase Initialization and Auth Listener
-  useEffect(() => {
-    // Only proceed if app and auth objects are available
-    if (!app || !auth) {
-      console.error("Firebase app or auth not initialized. Please check Firebase configuration.");
-      // Set authReady to true if Firebase isn't configured, to allow UI to proceed (though data won't work)
-      setIsAuthReady(true);
-      return;
-    }
-
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        setCurrentUserId(user.uid);
-        // Seed initial data if not already seeded
-        await seedInitialData(user.uid);
-        // We'll determine role after successful login via passcode
-      } else {
-        // Sign in anonymously if no token or user
-        try {
-          if (initialAuthToken) {
-            await signInWithCustomToken(auth, initialAuthToken);
-          } else {
-            await signInAnonymously(auth);
-          }
-        } catch (error) {
-          console.error("Error signing in:", error);
-          showAppToast(`Authentication failed: ${error.message}`, 'error');
-        }
-      }
-      setIsAuthReady(true); // Auth state is now ready
-    });
-
-    return () => unsubscribe(); // Cleanup auth listener
-  }, [auth]); // Depend on 'auth' to re-run if it becomes available later
-
-  // --- Data Seeding Logic ---
+  // Function to seed initial data into Firestore
   const seedInitialData = async (uid) => {
     if (!db || !uid) return;
 
-    const metadataDocRef = doc(db, privateUserDataPath(uid), COLLECTIONS.APP_METADATA, 'seed_status');
+    const metadataDocRef = doc(db, PRIVATE_USER_DATA_PATH(uid), COLLECTIONS.APP_METADATA, 'seed_status');
     try {
       const docSnap = await getDoc(metadataDocRef);
 
       if (!docSnap.exists() || !docSnap.data()?.seeded) {
         console.log("Seeding initial data...");
 
-        const batch = [];
+        const batchPromises = [];
 
-        // Coaches
+        // Seed Categories to public path
+        for (const category of initialSeedData.categories) {
+          batchPromises.push(setDoc(doc(db, PUBLIC_DATA_PATH, COLLECTIONS.LOOKUP_CATEGORIES, category.id), category));
+        }
+        // Seed Entities to public path
+        for (const entity of initialSeedData.entities) {
+          batchPromises.push(setDoc(doc(db, PUBLIC_DATA_PATH, COLLECTIONS.LOOKUP_ENTITIES, entity.id), entity));
+        }
+        // Coaches to private user path
         for (const coach of initialSeedData.coaches) {
-          batch.push(setDoc(doc(db, privateUserDataPath(uid), COLLECTIONS.COACHES, coach.id), coach));
+          batchPromises.push(setDoc(doc(db, PRIVATE_USER_DATA_PATH(uid), COLLECTIONS.COACHES, coach.id), coach));
         }
-        // Athletes
+        // Athletes to private user path
         for (const athlete of initialSeedData.athletes) {
-          batch.push(setDoc(doc(db, privateUserDataPath(uid), COLLECTIONS.ATHLETES, athlete.id), athlete));
+          batchPromises.push(setDoc(doc(db, PRIVATE_USER_DATA_PATH(uid), COLLECTIONS.ATHLETES, athlete.id), athlete));
         }
 
-        await Promise.all(batch);
+        await Promise.all(batchPromises);
         await setDoc(metadataDocRef, { seeded: true, timestamp: new Date() });
         console.log("Initial data seeded successfully.");
       } else {
@@ -242,9 +266,54 @@ export default function App() {
     }
   };
 
+  // Firebase Initialization and Auth Listener
+  useEffect(() => {
+    // firebaseConfig is now guaranteed to have a projectId at this point due to the global initialization logic.
+    // The only remaining check here is whether the Firebase 'app' instance has already been initialized.
+    if (!app) { // Initialize Firebase instances only once
+      try {
+        app = initializeApp(firebaseConfig); // Use the globally defined and ensured firebaseConfig
+        db = getFirestore(app);
+        auth = getAuth(app);
+      } catch (error) {
+        const errorMessage = `Error initializing Firebase: ${error.message}. Please check your Firebase config.`;
+        console.error(errorMessage, error);
+        setFirebaseInitError(errorMessage);
+        setIsAuthReady(true);
+        return;
+      }
+    }
+
+    // Set up Firebase authentication state listener
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        // User is signed in (either from custom token or anonymously)
+        setCurrentUserId(user.uid);
+        await seedInitialData(user.uid); // Seed data for this authenticated user
+      } else {
+        // No user signed in, attempt to sign in
+        try {
+          if (initialAuthToken) {
+            // Sign in with custom token if provided
+            await signInWithCustomToken(auth, initialAuthToken);
+          } else {
+            // Otherwise, sign in anonymously
+            await signInAnonymously(auth);
+          }
+        } catch (error) {
+          console.error("Error during initial authentication:", error);
+          showAppToast(`Authentication failed: ${error.message}`, 'error');
+        }
+      }
+      setIsAuthReady(true); // Firebase authentication state is ready
+    });
+
+    // Cleanup function for the effect
+    return () => unsubscribe();
+  }, [auth, firebaseConfig, initialAuthToken, seedInitialData]); // Dependencies for useEffect
+
   // --- Login Logic ---
   const handleLogin = async (passcode) => {
-    // Ensure auth and db are initialized before attempting login
     if (!auth || !db || !currentUserId) {
       showAppToast("App is not fully initialized. Please wait or check console for Firebase errors.", 'error');
       return false;
@@ -253,20 +322,22 @@ export default function App() {
     if (passcode === MASTER_PASSCODE) {
       setIsAuthenticated(true);
       setUserRole('admin');
+      setLoggedInUserName('Admin'); // Set admin name
       showAppToast("Logged in as Admin!");
       return true;
     }
 
     try {
-      // Check if it's a valid coach passcode
-      const coachesRef = collection(db, privateUserDataPath(currentUserId), COLLECTIONS.COACHES);
+      const coachesRef = collection(db, PRIVATE_USER_DATA_PATH(currentUserId), COLLECTIONS.COACHES);
       const q = query(coachesRef, where('passcode', '==', passcode), where('isApproved', '==', true));
       const querySnapshot = await getDocs(q);
 
       if (!querySnapshot.empty) {
+        const coachData = querySnapshot.docs[0].data();
         setIsAuthenticated(true);
         setUserRole('coach');
-        showAppToast("Logged in as Coach!");
+        setLoggedInUserName(coachData.name); // Set coach's name
+        showAppToast(`Logged in as Coach ${coachData.name}!`);
         return true;
       } else {
         showAppToast("Invalid Passcode.", 'error');
@@ -282,12 +353,22 @@ export default function App() {
   const handleLogout = () => {
     setIsAuthenticated(false);
     setUserRole('none');
-    // Optionally sign out from Firebase auth if desired, but for Canvas context,
-    // keeping anonymous session active is often fine.
-    // auth.signOut();
+    setLoggedInUserName(null);
     showAppToast("Logged out successfully.");
   };
 
+  // Display initialization error if Firebase setup failed
+  if (firebaseInitError) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-red-100 text-red-800 p-8 rounded-lg shadow-lg">
+        <h2 className="text-2xl font-bold mb-4">Application Initialization Error</h2>
+        <p className="text-center">{firebaseInitError}</p>
+        <p className="mt-4 text-sm text-red-600">Please ensure your Firebase configuration is correct and reload the page.</p>
+      </div>
+    );
+  }
+
+  // Show loading spinner while authentication state is being determined
   if (!isAuthReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-400 to-indigo-600">
@@ -299,18 +380,25 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-100 font-sans text-gray-900 flex flex-col items-center justify-center p-4">
       {!isAuthenticated ? (
+        // Show login screen if not authenticated
         <LoginScreen onLogin={handleLogin} />
       ) : (
+        // Show main app content if authenticated
         <MainAppContent
           currentUserId={currentUserId}
           userRole={userRole}
+          loggedInUserName={loggedInUserName}
           onLogout={handleLogout}
           db={db}
+          publicDataPath={PUBLIC_DATA_PATH}
+          privateUserDataPath={PRIVATE_USER_DATA_PATH}
+          COLLECTIONS={COLLECTIONS}
           showAppToast={showAppToast}
+          deviceType={deviceType} // Pass deviceType
+          setDeviceType={setDeviceType} // Pass setDeviceType
         />
       )}
       <ToastNotification message={toastMessage} type={toastType} onClose={() => setShowToast(false)} />
-      {/* Display currentUserId in the UI for multi-user apps as per instructions */}
       {isAuthenticated && (
         <div className="absolute bottom-2 left-2 text-xs text-gray-500 bg-white bg-opacity-75 p-1 rounded">
           User ID: {currentUserId}
@@ -330,7 +418,7 @@ const LoginScreen = ({ onLogin }) => {
     setIsLoading(true);
     const success = await onLogin(passcode);
     if (!success) {
-      setPasscode(''); // Clear passcode on failure
+      setPasscode('');
     }
     setIsLoading(false);
   };
@@ -350,7 +438,7 @@ const LoginScreen = ({ onLogin }) => {
             value={passcode}
             onChange={(e) => setPasscode(e.target.value)}
             required
-            maxLength="10" // Master passcode is 'cheer123' (8 chars), coach passcodes are 4. Max 10 chars is safe.
+            maxLength="10"
           />
         </div>
         <button
@@ -366,24 +454,38 @@ const LoginScreen = ({ onLogin }) => {
 };
 
 // --- Main Application Content (After Login) ---
-const MainAppContent = ({ currentUserId, userRole, onLogout, db, showAppToast }) => {
-  const [viewMode, setViewMode] = useState('check-in'); // 'check-in' or 'coach-dashboard'
+const MainAppContent = ({ currentUserId, userRole, loggedInUserName, onLogout, db, publicDataPath, privateUserDataPath, COLLECTIONS, showAppToast, deviceType, setDeviceType }) => {
+  const [viewMode, setViewMode] = useState('check-in');
 
   useEffect(() => {
+    // Set initial view mode based on user role
     if (userRole === 'coach' || userRole === 'admin') {
-      setViewMode('coach-dashboard'); // Redirect to coach dashboard if logged in as coach/admin
+      setViewMode('coach-dashboard');
     } else {
-      setViewMode('check-in'); // Default to check-in if somehow not admin/coach
+      setViewMode('check-in');
     }
   }, [userRole]);
 
+  // Determine max-width class based on deviceType
+  const getMaxWidthClass = () => {
+    switch (deviceType) {
+      case 'phone':
+        return 'max-w-md'; // Simulates phone width
+      case 'tablet':
+        return 'max-w-3xl'; // Simulates tablet width
+      case 'pc':
+      default:
+        return 'max-w-6xl'; // Simulates PC width
+    }
+  };
+
   return (
-    <div className="w-full max-w-6xl mx-auto bg-white rounded-xl shadow-2xl border border-gray-200 min-h-[80vh] flex flex-col">
-      <header className="p-4 bg-gradient-to-r from-indigo-600 to-purple-700 text-white rounded-t-xl shadow-md flex justify-between items-center">
+    <div className={`w-full mx-auto bg-white rounded-xl shadow-2xl border border-gray-200 min-h-[80vh] flex flex-col ${getMaxWidthClass()}`}>
+      <header className="p-4 bg-gradient-to-r from-indigo-600 to-purple-700 text-white rounded-t-xl shadow-md flex justify-between items-center flex-wrap gap-2">
         <h1 className="text-3xl font-extrabold">Cheer Portal</h1>
         <div className="flex items-center space-x-4">
           {userRole !== 'none' && (
-            <span className="text-sm font-medium opacity-80 capitalize">Logged in as {userRole}</span>
+            <span className="text-sm font-medium opacity-80 capitalize">Logged in as {loggedInUserName || userRole}</span>
           )}
           <button
             onClick={onLogout}
@@ -393,6 +495,30 @@ const MainAppContent = ({ currentUserId, userRole, onLogout, db, showAppToast })
           </button>
         </div>
       </header>
+
+      {/* Device Selector */}
+      <div className="flex justify-center p-2 bg-gray-100 border-b border-gray-200">
+        <div className="flex space-x-2 bg-white rounded-full p-1 shadow-inner">
+          <button
+            onClick={() => setDeviceType('phone')}
+            className={`flex items-center px-4 py-2 rounded-full font-medium text-sm transition-colors duration-200 ${deviceType === 'phone' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-700 hover:bg-gray-100'}`}
+          >
+            <Icon name="Smartphone" size={16} className="mr-1" /> Phone
+          </button>
+          <button
+            onClick={() => setDeviceType('tablet')}
+            className={`flex items-center px-4 py-2 rounded-full font-medium text-sm transition-colors duration-200 ${deviceType === 'tablet' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-700 hover:bg-gray-100'}`}
+          >
+            <Icon name="Tablet" size={16} className="mr-1" /> Tablet
+          </button>
+          <button
+            onClick={() => setDeviceType('pc')}
+            className={`flex items-center px-4 py-2 rounded-full font-medium text-sm transition-colors duration-200 ${deviceType === 'pc' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-700 hover:bg-gray-100'}`}
+          >
+            <Icon name="Monitor" size={16} className="mr-1" /> PC
+          </button>
+        </div>
+      </div>
 
       <nav className="flex bg-gray-50 border-b border-gray-200">
         <button
@@ -405,9 +531,9 @@ const MainAppContent = ({ currentUserId, userRole, onLogout, db, showAppToast })
           <button
             onClick={() => setViewMode('coach-dashboard')}
             className={`flex-1 py-3 px-4 text-center font-medium text-gray-700 hover:bg-gray-100 focus:outline-none transition-colors duration-200 ${viewMode === 'coach-dashboard' ? 'border-b-4 border-indigo-600 text-indigo-700 bg-gray-100' : ''}`}
-        >
-          <Settings className="inline-block mr-2" size={20} /> Coach Dashboard
-        </button>
+          >
+            <Settings className="inline-block mr-2" size={20} /> Coach Dashboard
+          </button>
         )}
       </nav>
 
@@ -416,7 +542,11 @@ const MainAppContent = ({ currentUserId, userRole, onLogout, db, showAppToast })
           <CheckInMode
             db={db}
             currentUserId={currentUserId}
+            publicDataPath={publicDataPath}
+            privateUserDataPath={privateUserDataPath}
+            COLLECTIONS={COLLECTIONS}
             showAppToast={showAppToast}
+            deviceType={deviceType} // Pass deviceType
           />
         )}
         {viewMode === 'coach-dashboard' && (userRole === 'coach' || userRole === 'admin') && (
@@ -424,7 +554,12 @@ const MainAppContent = ({ currentUserId, userRole, onLogout, db, showAppToast })
             db={db}
             currentUserId={currentUserId}
             userRole={userRole}
+            loggedInUserName={loggedInUserName}
+            publicDataPath={publicDataPath}
+            privateUserDataPath={privateUserDataPath}
+            COLLECTIONS={COLLECTIONS}
             showAppToast={showAppToast}
+            deviceType={deviceType} // Pass deviceType
           />
         )}
       </main>
@@ -433,67 +568,61 @@ const MainAppContent = ({ currentUserId, userRole, onLogout, db, showAppToast })
 };
 
 // --- Check-In Mode Component ---
-const CheckInMode = ({ db, currentUserId, showAppToast }) => {
-  const [selectedCategory, setSelectedCategory] = useState(null); // 'Team' or 'Class'
-  const [selectedEntity, setSelectedEntity] = useState(null); // e.g., 'Sparkle Squad'
+const CheckInMode = ({ db, currentUserId, publicDataPath, privateUserDataPath, COLLECTIONS, showAppToast, deviceType }) => {
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedEntity, setSelectedEntity] = useState(null);
+  const [categories, setCategories] = useState([]);
+  const [entities, setEntities] = useState([]);
   const [athletes, setAthletes] = useState([]);
-  const [teams, setTeams] = useState([]);
-  const [classes, setClasses] = useState([]);
   const [currentCheckins, setCurrentCheckins] = useState([]);
   const [holdingAthleteId, setHoldingAthleteId] = useState(null);
-  const [holdProgressMap, setHoldProgressMap] = useState({}); // { athleteId: progressPercentage }
-  const holdIntervalRef = useRef({}); // Ref to store interval IDs for each athlete
-
-  const [isMouseDown, setIsMouseDown] = useState(false); // NEW: Track if mouse button is down
+  const [holdProgressMap, setHoldProgressMap] = useState({});
+  const holdIntervalRef = useRef({});
 
   const CHECK_IN_HOLD_TIME = 1000; // 1 second for hold to check-in
 
-  // Fetch teams and classes for selection
+  // Fetch all categories from public data
   useEffect(() => {
-    if (!db || !currentUserId) return;
+    if (!db) return;
+    const categoriesRef = collection(db, publicDataPath, COLLECTIONS.LOOKUP_CATEGORIES);
+    const unsubscribe = onSnapshot(categoriesRef, (snapshot) => {
+      setCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => a.name.localeCompare(b.name)));
+    }, (error) => {
+      console.error("Error fetching categories:", error);
+      showAppToast(`Error loading categories: ${error.message}`, 'error');
+    });
+    return () => unsubscribe();
+  }, [db, publicDataPath, COLLECTIONS.LOOKUP_CATEGORIES, showAppToast]);
 
-    const fetchEntities = async () => {
-      try {
-        const athletesRef = collection(db, privateUserDataPath(currentUserId), COLLECTIONS.ATHLETES);
-        const q = query(athletesRef, where('isApproved', '==', true));
-        const querySnapshot = await getDocs(q);
-
-        const allTeams = new Set();
-        const allClasses = new Set();
-
-        querySnapshot.forEach(docSnap => {
-          const athlete = docSnap.data();
-          athlete.teams.forEach(team => allTeams.add(team));
-          athlete.classes.forEach(cls => allClasses.add(cls));
-        });
-        setTeams(Array.from(allTeams).sort());
-        setClasses(Array.from(allClasses).sort());
-      } catch (error) {
-        console.error("Error fetching entities:", error);
-        showAppToast(`Error loading teams/classes: ${error.message}`, 'error');
-      }
-    };
-    fetchEntities();
-  }, [db, currentUserId, showAppToast]);
-
-  // Fetch athletes based on selected category and entity
+  // Fetch entities based on selected category from public data
   useEffect(() => {
-    if (!db || !currentUserId || !selectedCategory || !selectedEntity) {
+    if (!db || !selectedCategory?.id) {
+      setEntities([]);
+      return;
+    }
+    const entitiesRef = collection(db, publicDataPath, COLLECTIONS.LOOKUP_ENTITIES);
+    const q = query(entitiesRef, where('categoryId', '==', selectedCategory.id));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setEntities(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => a.name.localeCompare(b.name)));
+    }, (error) => {
+      console.error("Error fetching entities for category:", error);
+      showAppToast(`Error loading entities: ${error.message}`, 'error');
+    });
+    return () => unsubscribe();
+  }, [db, publicDataPath, COLLECTIONS.LOOKUP_ENTITIES, selectedCategory, showAppToast]);
+
+
+  // Fetch approved athletes associated with the selected entity from private user data
+  useEffect(() => {
+    if (!db || !currentUserId || !selectedEntity?.id) {
       setAthletes([]);
       return;
     }
-
     const athletesRef = collection(db, privateUserDataPath(currentUserId), COLLECTIONS.ATHLETES);
-    let q;
-    if (selectedCategory === 'Team') {
-      q = query(athletesRef, where('teams', 'array-contains', selectedEntity), where('isApproved', '==', true));
-    } else { // Class
-      q = query(athletesRef, where('classes', 'array-contains', selectedEntity), where('isApproved', '==', true));
-    }
+    const q = query(athletesRef, where('associatedEntities', 'array-contains', { id: selectedEntity.id, name: selectedEntity.name, categoryId: selectedEntity.categoryId }), where('isApproved', '==', true));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const fetchedAthletes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      // Sort athletes alphabetically by name
       setAthletes(fetchedAthletes.sort((a, b) => a.name.localeCompare(b.name)));
     }, (error) => {
       console.error("Error fetching athletes:", error);
@@ -501,11 +630,11 @@ const CheckInMode = ({ db, currentUserId, showAppToast }) => {
     });
 
     return () => unsubscribe();
-  }, [db, currentUserId, selectedCategory, selectedEntity, showAppToast]);
+  }, [db, currentUserId, privateUserDataPath, COLLECTIONS.ATHLETES, selectedEntity, showAppToast]);
 
-  // Listen for current check-ins in real-time
+  // Listen for current check-ins in real-time from public data
   useEffect(() => {
-    if (!db || !currentUserId || !selectedCategory || !selectedEntity) {
+    if (!db || !currentUserId || !selectedCategory?.id || !selectedEntity?.id) {
       setCurrentCheckins([]);
       return;
     }
@@ -513,8 +642,8 @@ const CheckInMode = ({ db, currentUserId, showAppToast }) => {
     const checkinsRef = collection(db, publicDataPath, COLLECTIONS.CURRENT_CHECKINS);
     const q = query(
       checkinsRef,
-      where('checkInType', '==', selectedCategory.toLowerCase()),
-      where('checkInEntity', '==', selectedEntity)
+      where('checkInCategoryId', '==', selectedCategory.id),
+      where('checkInEntityId', '==', selectedEntity.id)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -526,19 +655,15 @@ const CheckInMode = ({ db, currentUserId, showAppToast }) => {
     });
 
     return () => unsubscribe();
-  }, [db, currentUserId, selectedCategory, selectedEntity, showAppToast]);
+  }, [db, currentUserId, publicDataPath, COLLECTIONS.CURRENT_CHECKINS, selectedCategory, selectedEntity, showAppToast]);
 
-  // FIX: Add Logging to handleHoldStart
+  // Handle touch/mouse hold start for check-in
   const handleHoldStart = (athleteId, athleteName) => {
-    console.log(`🔥 [Hold Start] Athlete: ${athleteName} (${athleteId})`);
-
     if (!db || !currentUserId) {
-      console.warn("❌ Database or user ID not available.");
       showAppToast("App not ready.", 'error');
       return;
     }
 
-    // Clear existing interval if it exists
     if (holdIntervalRef.current[athleteId]) {
       clearInterval(holdIntervalRef.current[athleteId]);
     }
@@ -556,105 +681,107 @@ const CheckInMode = ({ db, currentUserId, showAppToast }) => {
       if (progress >= 100) {
         clearInterval(holdIntervalRef.current[athleteId]);
         delete holdIntervalRef.current[athleteId];
-        console.log(`✅ [Hold Complete] Triggering check-in for ${athleteName}`);
         handleCheckIn(athleteId, athleteName);
         setHoldingAthleteId(null);
       }
     }, 50);
   };
 
+  // Handle touch/mouse hold end (release)
   const handleHoldEnd = (athleteId) => {
     if (holdIntervalRef.current[athleteId]) {
       clearInterval(holdIntervalRef.current[athleteId]);
       delete holdIntervalRef.current[athleteId];
     }
     setHoldingAthleteId(null);
-    setHoldProgressMap(prev => ({ ...prev, [athleteId]: 0 })); // Reset progress
+    setHoldProgressMap(prev => ({ ...prev, [athleteId]: 0 }));
   };
 
-  // FIX: Add Logging to handleCheckIn
+  // Perform the check-in operation
   const handleCheckIn = async (athleteId, athleteName) => {
-    console.log(`📥 [Check-In Start] Athlete: ${athleteName} (${athleteId})`);
-
-    if (!db || !currentUserId || !selectedCategory || !selectedEntity) {
-      console.warn("❌ Missing check-in prerequisites:", { db, currentUserId, selectedCategory, selectedEntity });
+    if (!db || !currentUserId || !selectedCategory?.id || !selectedEntity?.id) {
       showAppToast("Selection incomplete for check-in.", 'error');
       return;
     }
 
     const timestamp = new Date();
     const checkinsRef = collection(db, publicDataPath, COLLECTIONS.CURRENT_CHECKINS);
-    const checkinId = `${athleteId}_${selectedCategory.toLowerCase()}_${selectedEntity}_${timestamp.getTime()}`;
+    // Create a unique ID for the check-in document
+    const checkinId = `${athleteId}_${selectedCategory.id}_${selectedEntity.id}_${timestamp.getTime()}`;
     const checkinData = {
       athleteId,
       athleteName,
-      checkInType: selectedCategory.toLowerCase(),
-      checkInEntity: selectedEntity,
-      timestamp: timestamp.toISOString()
+      checkInCategoryId: selectedCategory.id,
+      checkInCategoryName: selectedCategory.name,
+      checkInEntityId: selectedEntity.id,
+      checkInEntityName: selectedEntity.name,
+      timestamp: timestamp.toISOString() // Store timestamp as ISO string for consistency
     };
 
     try {
       await setDoc(doc(checkinsRef, checkinId), checkinData);
-      console.log(`✅ [Check-In Success] ${athleteName} checked in`);
-      showAppToast(`Checked in ${athleteName} for ${selectedEntity}!`);
+      showAppToast(`Checked in ${athleteName} for ${selectedEntity.name}!`);
     } catch (err) {
-      console.error(`🔥 [Check-In Error] ${athleteName}:`, err);
+      console.error(`Check-in failed: ${err.message}`, 'error');
       showAppToast(`Check-in failed: ${err.message}`, 'error');
     }
   };
 
+  // Check if an athlete is currently checked in for the selected entity/category
   const isCheckedIn = (athleteId) => {
     return currentCheckins.some(
       checkin => checkin.athleteId === athleteId &&
-      checkin.checkInType === selectedCategory.toLowerCase() &&
-      checkin.checkInEntity === selectedEntity
+      checkin.checkInCategoryId === selectedCategory.id &&
+      checkin.checkInEntityId === selectedEntity.id
     );
   };
 
+  // Determine grid columns based on deviceType for category and entity selection
+  const getCategoryGridColsClass = () => {
+    switch (deviceType) {
+      case 'phone': return 'grid-cols-1';
+      case 'tablet': return 'grid-cols-2';
+      case 'pc': return 'grid-cols-4';
+      default: return 'grid-cols-2'; // Default for wider screens
+    }
+  };
+
+  const getEntityGridColsClass = () => {
+    switch (deviceType) {
+      case 'phone': return 'grid-cols-1';
+      case 'tablet': return 'grid-cols-2';
+      case 'pc': return 'grid-cols-3';
+      default: return 'grid-cols-2'; // Default for wider screens
+    }
+  };
+
+  const getAthleteGridColsClass = () => {
+    switch (deviceType) {
+      case 'phone': return 'grid-cols-1';
+      case 'tablet': return 'grid-cols-2';
+      case 'pc': return 'grid-cols-3';
+      default: return 'grid-cols-2';
+    }
+  };
+
+  // Render category selection screen
   if (!selectedCategory) {
     return (
-      <div className="flex flex-col items-center justify-center h-full space-y-6">
-        <h2 className="text-3xl font-bold text-center text-gray-800">Select Check-In Category</h2>
-        <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 w-full max-w-md">
-          <button
-            onClick={() => setSelectedCategory('Team')}
-            className="flex-1 bg-indigo-500 text-white py-4 px-6 rounded-lg text-xl font-semibold shadow-lg hover:bg-indigo-600 transition duration-300 ease-in-out transform hover:scale-105"
-          >
-            <Users className="inline-block mr-2" size={24} /> Team
-          </button>
-          <button
-            onClick={() => setSelectedCategory('Class')}
-            className="flex-1 bg-purple-500 text-white py-4 px-6 rounded-lg text-xl font-semibold shadow-lg hover:bg-purple-600 transition duration-300 ease-in-out transform hover:scale-105"
-          >
-            <Calendar className="inline-block mr-2" size={24} /> Class
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!selectedEntity) {
-    const entities = selectedCategory === 'Team' ? teams : classes;
-    return (
-      <div className="flex flex-col items-center h-full p-4">
-        <button
-          onClick={() => setSelectedCategory(null)}
-          className="self-start mb-4 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg flex items-center hover:bg-gray-300 transition duration-200"
-        >
-          <ChevronLeft size={20} className="mr-2" /> Back
-        </button>
-        <h2 className="text-3xl font-bold text-center text-gray-800 mb-6">Select {selectedCategory}</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full max-w-3xl">
-          {entities.length === 0 ? (
-            <p className="text-center text-gray-600 col-span-full">No {selectedCategory.toLowerCase()}es available.</p>
+      <div className="flex flex-col items-center justify-center h-full space-y-6 p-4">
+        <h2 className="text-3xl font-bold text-center text-gray-800 mb-6">Select Check-In Category</h2>
+        <div className={`grid ${getCategoryGridColsClass()} gap-6 w-full max-w-2xl`}>
+          {categories.length === 0 ? (
+            <p className="col-span-full text-center text-gray-600 text-lg">No categories defined. Please contact an admin.</p>
           ) : (
-            entities.map(entity => (
+            categories.map(category => (
               <button
-                key={entity}
-                onClick={() => setSelectedEntity(entity)}
-                className="bg-white border border-gray-200 rounded-lg p-4 text-center font-medium shadow hover:shadow-md transition duration-200 transform hover:scale-105 text-lg"
+                key={category.id}
+                onClick={() => setSelectedCategory(category)}
+                className="flex flex-col items-center justify-center bg-white border border-gray-200 rounded-2xl p-6 text-center font-semibold text-xl shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out transform hover:scale-105
+                           aspect-square" // Make buttons square for aesthetic
               >
-                {entity}
+                <Icon name={category.icon} size={48} className="mb-3 text-indigo-600" />
+                {category.name}
               </button>
             ))
           )}
@@ -663,20 +790,52 @@ const CheckInMode = ({ db, currentUserId, showAppToast }) => {
     );
   }
 
+  // Render entity selection screen for the chosen category
+  if (!selectedEntity) {
+    return (
+      <div className="flex flex-col h-full p-4">
+        <button
+          onClick={() => { setSelectedCategory(null); setSelectedEntity(null); }}
+          className="self-start mb-6 bg-gray-200 text-gray-700 py-3 px-6 rounded-full flex items-center hover:bg-gray-300 transition duration-200 shadow-md text-lg font-semibold"
+        >
+          <ChevronLeft size={24} className="mr-3" /> Back to Categories
+        </button>
+        <h2 className="text-3xl font-bold text-center text-gray-800 mb-8">Select {selectedCategory.name}</h2>
+        <div className={`grid ${getEntityGridColsClass()} gap-6 w-full max-w-3xl mx-auto`}>
+          {entities.length === 0 ? (
+            <p className="text-center text-gray-600 col-span-full text-lg">No {selectedCategory.name.toLowerCase()}s available. Please contact an an admin.</p>
+          ) : (
+            entities.map(entity => (
+              <button
+                key={entity.id}
+                onClick={() => setSelectedEntity(entity)}
+                className="bg-white border border-gray-200 rounded-2xl p-6 text-center font-bold text-xl shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out transform hover:scale-105
+                           aspect-video flex items-center justify-center" // Make buttons rectangular
+              >
+                {entity.name}
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Render athlete list for check-in
   return (
     <div className="flex flex-col h-full p-4">
       <button
         onClick={() => setSelectedEntity(null)}
-        className="self-start mb-4 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg flex items-center hover:bg-gray-300 transition duration-200"
+        className="self-start mb-6 bg-gray-200 text-gray-700 py-3 px-6 rounded-full flex items-center hover:bg-gray-300 transition duration-200 shadow-md text-lg font-semibold"
       >
-        <ChevronLeft size={20} className="mr-2" /> Back to {selectedCategory} Selection
+        <ChevronLeft size={24} className="mr-3" /> Back to {selectedCategory.name} Selection
       </button>
-      <h2 className="text-3xl font-bold text-center text-gray-800 mb-6">
-        Check-In for: <span className="text-indigo-600">{selectedEntity}</span>
+      <h2 className="text-3xl font-bold text-center text-gray-800 mb-8">
+        Check-In for: <span className="text-indigo-600">{selectedEntity.name} ({selectedCategory.name})</span>
       </h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full max-w-5xl mx-auto">
+      <div className={`grid ${getAthleteGridColsClass()} gap-6 w-full max-w-5xl mx-auto`}>
         {athletes.length === 0 ? (
-          <p className="text-center text-gray-600 col-span-full">No athletes found for this {selectedCategory.toLowerCase()}.</p>
+          <p className="text-center text-gray-600 col-span-full text-lg py-10">No approved athletes found for this {selectedEntity.name}.</p>
         ) : (
           athletes.map(athlete => {
             const checkedIn = isCheckedIn(athlete.id);
@@ -686,69 +845,40 @@ const CheckInMode = ({ db, currentUserId, showAppToast }) => {
             return (
               <div
                 key={athlete.id}
-                className={`relative bg-white rounded-lg p-4 shadow-md overflow-hidden transition-all duration-300 ease-in-out
-                  ${checkedIn ? 'border-2 border-green-500 bg-green-50' : 'border border-gray-200'}
-                  ${holding ? 'scale-105 shadow-xl' : ''}
+                className={`relative bg-white rounded-2xl p-6 shadow-xl overflow-hidden transition-all duration-300 ease-in-out cursor-pointer
+                  ${checkedIn ? 'border-4 border-green-500 bg-green-50' : 'border-2 border-gray-200'}
+                  ${holding ? 'scale-105 shadow-2xl' : 'hover:shadow-lg hover:scale-[1.02]'}
                 `}
+                onMouseDown={() => handleHoldStart(athlete.id, athlete.name)}
+                onMouseUp={() => handleHoldEnd(athlete.id)}
+                onMouseLeave={() => handleHoldEnd(athlete.id)}
+                onTouchStart={(e) => { e.preventDefault(); handleHoldStart(athlete.id, athlete.name); }}
+                onTouchEnd={() => handleHoldEnd(athlete.id)}
+                onTouchCancel={() => handleHoldEnd(athlete.id)}
               >
-                {/* Progress bar overlay */}
+                {/* Progress bar overlay for hold-to-check-in */}
                 {holding && (
                   <div
-                    className="absolute inset-0 bg-indigo-200 opacity-50 z-0 transition-all duration-50"
+                    className="absolute inset-x-0 bottom-0 h-2 bg-indigo-500 opacity-75 z-0 transition-all duration-50"
                     style={{ width: `${progress}%` }}
                   ></div>
                 )}
-                {/* FIX: Add console.log on UI Button */}
-                <button
-                  className={`relative z-10 w-full text-left py-2 px-3 rounded-lg
-                    ${checkedIn ? 'text-green-800' : 'text-gray-800'}
-                    ${holding ? 'pointer-events-none' : 'hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'}
-                  `}
-                  onMouseDown={() => {
-                    setIsMouseDown(true); // Set mouse down state
-                    console.log("[MouseDown] Start hold");
-                    handleHoldStart(athlete.id, athlete.name);
-                  }}
-                  onMouseUp={() => {
-                    setIsMouseDown(false); // Clear mouse down state
-                    console.log("[MouseUp] End hold");
-                    handleHoldEnd(athlete.id);
-                  }}
-                  onMouseLeave={() => {
-                    // Only end hold if mouse is not still down
-                    if (!isMouseDown) {
-                      console.log("[MouseLeave] Cancel hold (mouse up)");
-                      handleHoldEnd(athlete.id);
-                    } else {
-                      console.log("[MouseLeave] Mouse still down, not canceling hold.");
-                    }
-                  }}
-                  onTouchStart={(e) => {
-                    e.preventDefault();
-                    console.log("[TouchStart] Start hold");
-                    handleHoldStart(athlete.id, athlete.name);
-                  }}
-                  onTouchEnd={() => {
-                    console.log("[TouchEnd] End hold");
-                    handleHoldEnd(athlete.id);
-                  }}
-                  onTouchCancel={() => {
-                    console.log("[TouchCancel] Cancel hold");
-                    handleHoldEnd(athlete.id);
-                  }}
-                >
-                  <div className="flex items-center">
-                    <img
-                      src={athlete.profilePicture || `https://placehold.co/50x50/cccccc/333333?text=${athlete.name.charAt(0)}}`}
-                      alt={athlete.name}
-                      className="w-12 h-12 rounded-full mr-4 object-cover border border-gray-300"
-                    />
-                    <span className="text-xl font-semibold truncate">{athlete.name}</span>
-                    {checkedIn && (
-                      <CheckCircle2 className="ml-auto text-green-600" size={24} />
-                    )}
-                  </div>
-                </button>
+                <div className="relative z-10 flex flex-col items-center text-center">
+                  <img
+                    src={athlete.profilePicture || `https://placehold.co/120x120/cccccc/333333?text=${athlete.name ? athlete.name.charAt(0) : '?'}`}
+                    alt={athlete.name}
+                    className="w-24 h-24 rounded-full mb-4 object-cover border-4 border-indigo-300 shadow-md"
+                  />
+                  <span className="text-2xl font-bold text-gray-900 truncate w-full px-2">{athlete.name}</span>
+                  {checkedIn && (
+                    <div className="mt-2 flex items-center text-green-700 font-semibold text-lg">
+                      <CheckCircle2 size={24} className="mr-2" /> Checked In
+                    </div>
+                  )}
+                  {holding && (
+                    <span className="mt-2 text-indigo-700 text-lg font-semibold">Holding...</span>
+                  )}
+                </div>
               </div>
             );
           })
@@ -759,14 +889,15 @@ const CheckInMode = ({ db, currentUserId, showAppToast }) => {
 };
 
 // --- Coach Dashboard Component ---
-const CoachDashboard = ({ db, currentUserId, userRole, showAppToast }) => {
-  const [activeTab, setActiveTab] = useState('attendance'); // 'attendance', 'athlete-profiles', 'coach-management', 'check-in-logs'
-  const [isResetting, setIsResetting] = useState(false);
+const CoachDashboard = ({ db, currentUserId, userRole, loggedInUserName, publicDataPath, privateUserDataPath, COLLECTIONS, showAppToast, deviceType }) => {
+  const [activeTab, setActiveTab] = useState('attendance');
+  const [isResetting, setIsResetting] = useState(false); // Changed initial state to boolean
   const [resetProgress, setResetProgress] = useState(0);
   const resetIntervalRef = useRef(null);
 
-  const RESET_HOLD_TIME = 3000; // 3 seconds to hold for reset
+  const RESET_HOLD_TIME = 3000; // 3 seconds for hold to reset
 
+  // Handle hold start for resetting daily check-ins
   const handleResetHoldStart = () => {
     setIsResetting(true);
     setResetProgress(0);
@@ -774,8 +905,7 @@ const CoachDashboard = ({ db, currentUserId, userRole, showAppToast }) => {
 
     resetIntervalRef.current = setInterval(() => {
       const elapsedTime = Date.now() - startTime;
-      // FIX: Changed 'elapsed' to 'elapsedTime'
-      const progress = Math.min(100, (elapsedTime / RESET_HOLD_TIME) * 100); 
+      const progress = Math.min(100, (elapsedTime / RESET_HOLD_TIME) * 100);
       setResetProgress(progress);
 
       if (progress === 100) {
@@ -784,9 +914,10 @@ const CoachDashboard = ({ db, currentUserId, userRole, showAppToast }) => {
         resetDailyCheckins();
         setIsResetting(false);
       }
-    }, 50);
+    }, 50); // Update progress every 50ms
   };
 
+  // Handle hold end (release) for resetting
   const handleResetHoldEnd = () => {
     if (resetIntervalRef.current) {
       clearInterval(resetIntervalRef.current);
@@ -796,9 +927,10 @@ const CoachDashboard = ({ db, currentUserId, userRole, showAppToast }) => {
     setResetProgress(0);
   };
 
+  // Logic to reset daily check-ins and log them historically
   const resetDailyCheckins = async () => {
     if (!db || !currentUserId) {
-      showAppToast("App not ready.", 'error');
+      showAppToast("App not ready for reset operation.", 'error');
       return;
     }
     showAppToast("Attempting to reset daily check-ins...", 'info');
@@ -810,32 +942,34 @@ const CoachDashboard = ({ db, currentUserId, userRole, showAppToast }) => {
       console.log(`Found ${querySnapshot.docs.length} check-ins to process.`);
 
       const checkinEventsToLog = [];
-      const batchDelete = [];
+      const batchDeletePromises = [];
 
       querySnapshot.forEach(docSnap => {
         const data = docSnap.data();
-        checkinEventsToLog.push(data); // Collect data for historical log
-        batchDelete.push(deleteDoc(doc(currentCheckinsRef, docSnap.id)));
+        checkinEventsToLog.push(data);
+        batchDeletePromises.push(deleteDoc(doc(currentCheckinsRef, docSnap.id)));
       });
 
       console.log("Executing batch delete for current check-ins...");
-      await Promise.all(batchDelete); // Execute all deletions
+      await Promise.all(batchDeletePromises); // Execute all delete operations concurrently
       console.log("Current check-ins successfully deleted.");
 
-      // Log to historical records if there were any check-ins
       if (checkinEventsToLog.length > 0) {
         console.log("Logging to historical records...");
         const historicalLogsRef = collection(db, publicDataPath, COLLECTIONS.HISTORICAL_CHECKIN_LOGS);
+        // Add a single document containing all events from the day's reset
         await addDoc(historicalLogsRef, {
           timestamp: new Date().toISOString(),
           resetByUserId: currentUserId,
-          dailyCheckInEvents: checkinEventsToLog.map(({ athleteId, athleteName, checkInType, checkInEntity, timestamp }) => ({
+          dailyCheckInEvents: checkinEventsToLog.map(({ athleteId, athleteName, checkInCategoryId, checkInCategoryName, checkInEntityId, checkInEntityName, timestamp }) => ({
             athleteId,
             athleteName,
-            checkInType,
-            checkInEntity,
+            checkInCategoryId,
+            checkInCategoryName,
+            checkInEntityId,
+            checkInEntityName,
             timestamp
-          })), // Remove individual checkin ID
+          })),
         });
         console.log("Historical log added successfully.");
       } else {
@@ -848,14 +982,13 @@ const CoachDashboard = ({ db, currentUserId, userRole, showAppToast }) => {
       console.error("Error resetting daily check-ins:", error);
       showAppToast(`Failed to reset: ${error.message}`, 'error');
     } finally {
-      // Ensure state is reset regardless of success or failure
-      setIsResetting(false);
+      setIsResetting(false); // Ensure resetting state is false regardless of success/failure
       setResetProgress(0);
       console.log("Reset state cleanup complete.");
     }
   };
 
-  const isAdminUser = userRole === 'admin'; // Explicitly define for disabled prop
+  const isAdminUser = userRole === 'admin';
 
   return (
     <div className="flex flex-col h-full">
@@ -868,23 +1001,25 @@ const CoachDashboard = ({ db, currentUserId, userRole, showAppToast }) => {
           onTouchStart={(e) => { e.preventDefault(); handleResetHoldStart(); }}
           onTouchEnd={handleResetHoldEnd}
           onTouchCancel={handleResetHoldEnd}
-          disabled={!isAdminUser} // Only admin can reset
+          disabled={!isAdminUser} // Only admins can reset
         >
           {isResetting && (
             <div
               className="absolute inset-0 bg-red-800 opacity-50 z-0 transition-all duration-50"
-              style={{ width: `${resetProgress}%` }} // FIX: Use resetProgress here
+              style={{ width: `${resetProgress}%` }}
             ></div>
           )}
           <span className="relative z-10">
             {isResetting ? `Hold to Reset (${Math.round(resetProgress)}%)` : 'Reset Daily Check-ins'}
           </span>
           {!isAdminUser && (
+            // Overlay to indicate admin-only if not admin
             <span className="absolute inset-0 flex items-center justify-center text-xs bg-gray-500 bg-opacity-75 rounded-full z-20">Admin Only</span>
           )}
         </button>
       </div>
 
+      {/* Navigation tabs for Coach Dashboard */}
       <nav className="flex bg-gray-50 border-b border-gray-200 rounded-t-lg overflow-hidden mb-6">
         <button
           onClick={() => setActiveTab('attendance')}
@@ -910,89 +1045,102 @@ const CoachDashboard = ({ db, currentUserId, userRole, showAppToast }) => {
         >
           <Calendar className="inline-block mr-2" size={20} /> Check-in Logs
         </button>
+        {isAdminUser && (
+          <button
+            onClick={() => setActiveTab('categories-entities')}
+            className={`flex-1 py-3 px-4 text-center font-medium text-gray-700 hover:bg-gray-100 focus:outline-none transition-colors duration-200 ${activeTab === 'categories-entities' ? 'border-b-4 border-indigo-600 text-indigo-700 bg-gray-100' : ''}`}
+          >
+            <Layers className="inline-block mr-2" size={20} /> Categories & Entities
+          </button>
+        )}
       </nav>
 
+      {/* Content area for active tab */}
       <div className="flex-1 overflow-auto bg-white rounded-b-xl p-4 shadow-inner">
-        {activeTab === 'attendance' && <AttendanceView db={db} currentUserId={currentUserId} showAppToast={showAppToast} />}
-        {activeTab === 'athlete-profiles' && <AthleteProfiles db={db} currentUserId={currentUserId} userRole={userRole} showAppToast={showAppToast} />}
-        {activeTab === 'coach-management' && <CoachManagement db={db} currentUserId={currentUserId} userRole={userRole} showAppToast={showAppToast} />}
-        {activeTab === 'check-in-logs' && <CheckinLogs db={db} currentUserId={currentUserId} userRole={userRole} showAppToast={showAppToast} />}
+        {activeTab === 'attendance' && <AttendanceView db={db} currentUserId={currentUserId} publicDataPath={publicDataPath} privateUserDataPath={privateUserDataPath} COLLECTIONS={COLLECTIONS} showAppToast={showAppToast} deviceType={deviceType} />}
+        {activeTab === 'athlete-profiles' && <AthleteProfiles db={db} currentUserId={currentUserId} userRole={userRole} loggedInUserName={loggedInUserName} publicDataPath={publicDataPath} privateUserDataPath={privateUserDataPath} COLLECTIONS={COLLECTIONS} showAppToast={showAppToast} deviceType={deviceType} />}
+        {activeTab === 'coach-management' && <CoachManagement db={db} currentUserId={currentUserId} userRole={userRole} publicDataPath={publicDataPath} privateUserDataPath={privateUserDataPath} COLLECTIONS={COLLECTIONS} showAppToast={showAppToast} deviceType={deviceType} />}
+        {activeTab === 'check-in-logs' && <CheckinLogs db={db} currentUserId={currentUserId} userRole={userRole} publicDataPath={publicDataPath} privateUserDataPath={privateUserDataPath} COLLECTIONS={COLLECTIONS} showAppToast={showAppToast} deviceType={deviceType} />}
+        {activeTab === 'categories-entities' && isAdminUser && <CategoryEntityManagement db={db} currentUserId={currentUserId} publicDataPath={publicDataPath} privateUserDataPath={privateUserDataPath} COLLECTIONS={COLLECTIONS} showAppToast={showAppToast} deviceType={deviceType} />}
       </div>
     </div>
   );
 };
 
 // --- Attendance View Component ---
-const AttendanceView = ({ db, currentUserId, showAppToast }) => {
+const AttendanceView = ({ db, currentUserId, publicDataPath, privateUserDataPath, COLLECTIONS, showAppToast, deviceType }) => {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedEntity, setSelectedEntity] = useState(null);
-  const [teams, setTeams] = useState([]);
-  const [classes, setClasses] = useState([]);
-  const [athletes, setAthletes] = useState([]); // Athletes belonging to selected entity
-  const [currentCheckins, setCurrentCheckins] = useState([]); // Check-ins for *today*
+  const [categories, setCategories] = useState([]);
+  const [entities, setEntities] = useState([]);
+  const [athletes, setAthletes] = useState([]);
+  const [currentCheckins, setCurrentCheckins] = useState([]);
 
-  // Fetch teams and classes for selection
+  // Fetch all categories from public data
   useEffect(() => {
-    if (!db || !currentUserId) return;
-    const fetchEntities = async () => {
-      try {
-        const athletesRef = collection(db, privateUserDataPath(currentUserId), COLLECTIONS.ATHLETES);
-        const q = query(athletesRef, where('isApproved', '==', true));
-        const querySnapshot = await getDocs(q);
+    if (!db) return;
+    const categoriesRef = collection(db, publicDataPath, COLLECTIONS.LOOKUP_CATEGORIES);
+    const unsubscribe = onSnapshot(categoriesRef, (snapshot) => {
+      setCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => a.name.localeCompare(b.name)));
+    }, (error) => {
+      console.error("Error fetching categories:", error);
+      showAppToast(`Error loading categories: ${error.message}`, 'error');
+    });
+    return () => unsubscribe();
+  }, [db, publicDataPath, COLLECTIONS.LOOKUP_CATEGORIES, showAppToast]);
 
-        const allTeams = new Set();
-        const allClasses = new Set();
-
-        querySnapshot.forEach(docSnap => {
-          const athlete = docSnap.data();
-          athlete.teams.forEach(team => allTeams.add(team));
-          athlete.classes.forEach(cls => allClasses.add(cls));
-        });
-        setTeams(Array.from(allTeams).sort());
-        setClasses(Array.from(allClasses).sort());
-      } catch (error) {
-        console.error("Error fetching entities:", error);
-        showAppToast(`Error loading teams/classes: ${error.message}`, 'error');
-      }
-    };
-    fetchEntities();
-  }, [db, currentUserId, showAppToast]);
-
-  // Listen for athletes in selected entity
+  // Fetch entities based on selected category from public data
   useEffect(() => {
-    if (!db || !currentUserId || !selectedCategory || !selectedEntity) {
+    if (!db || !selectedCategory?.id) {
+      setEntities([]);
+      return;
+    }
+    const entitiesRef = collection(db, publicDataPath, COLLECTIONS.LOOKUP_ENTITIES);
+    const q = query(entitiesRef, where('categoryId', '==', selectedCategory.id));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setEntities(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => a.name.localeCompare(b.name)));
+    }, (error) => {
+      console.error("Error fetching entities for category:", error);
+      showAppToast(`Error loading entities: ${error.message}`, 'error');
+    });
+    return () => unsubscribe();
+  }, [db, publicDataPath, COLLECTIONS.LOOKUP_ENTITIES, selectedCategory, showAppToast]);
+
+
+  // Fetch approved athletes associated with the selected entity from private user data
+  useEffect(() => {
+    if (!db || !currentUserId || !selectedEntity?.id) {
       setAthletes([]);
       return;
     }
     const athletesRef = collection(db, privateUserDataPath(currentUserId), COLLECTIONS.ATHLETES);
-    let q;
-    if (selectedCategory === 'Team') {
-      q = query(athletesRef, where('teams', 'array-contains', selectedEntity), where('isApproved', '==', true));
-    } else { // Class
-      q = query(athletesRef, where('classes', 'array-contains', selectedEntity), where('isApproved', '==', true));
-    }
+    const q = query(athletesRef, where('associatedEntities', 'array-contains', { id: selectedEntity.id, name: selectedEntity.name, categoryId: selectedEntity.categoryId }), where('isApproved', '==', true));
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const fetchedAthletes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setAthletes(fetchedAthletes.sort((a, b) => a.name.localeCompare(b.name)));
     }, (error) => {
-      console.error("Error fetching athletes for attendance:", error);
+      console.error("Error fetching athletes:", error);
       showAppToast(`Error loading athletes: ${error.message}`, 'error');
     });
-    return () => unsubscribe();
-  }, [db, currentUserId, selectedCategory, selectedEntity, showAppToast]);
 
-  // Listen for current daily check-ins
+    return () => unsubscribe();
+  }, [db, currentUserId, privateUserDataPath, COLLECTIONS.ATHLETES, selectedEntity, showAppToast]);
+
+  // Listen for current check-ins in real-time from public data
   useEffect(() => {
-    if (!db || !currentUserId || !selectedCategory || !selectedEntity) {
+    if (!db || !currentUserId || !selectedCategory?.id || !selectedEntity?.id) {
       setCurrentCheckins([]);
       return;
     }
+
     const checkinsRef = collection(db, publicDataPath, COLLECTIONS.CURRENT_CHECKINS);
     const q = query(
       checkinsRef,
-      where('checkInType', '==', selectedCategory.toLowerCase()),
-      where('checkInEntity', '==', selectedEntity)
+      where('checkInCategoryId', '==', selectedCategory.id),
+      where('checkInEntityId', '==', selectedEntity.id)
     );
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const fetchedCheckins = snapshot.docs.map(doc => doc.data());
       setCurrentCheckins(fetchedCheckins);
@@ -1000,8 +1148,9 @@ const AttendanceView = ({ db, currentUserId, showAppToast }) => {
       console.error("Error fetching current check-ins:", error);
       showAppToast(`Error loading check-ins: ${error.message}`, 'error');
     });
+
     return () => unsubscribe();
-  }, [db, currentUserId, selectedCategory, selectedEntity, showAppToast]);
+  }, [db, currentUserId, publicDataPath, COLLECTIONS.CURRENT_CHECKINS, selectedCategory, selectedEntity, showAppToast]);
 
   const getAthleteStatus = (athleteId) => {
     const checkins = currentCheckins.filter(c => c.athleteId === athleteId);
@@ -1012,7 +1161,7 @@ const AttendanceView = ({ db, currentUserId, showAppToast }) => {
       return {
         status: 'Checked In',
         lastCheckinTime: new Date(lastCheckin.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        activities: checkins.map(c => `${c.checkInEntity} (${new Date(c.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`).join(', ')
+        activities: checkins.map(c => `${c.checkInEntityName} (${c.checkInCategoryName}: ${new Date(c.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`).join(', ')
       };
     }
     return { status: 'Not Checked In', lastCheckinTime: 'N/A', activities: 'N/A' };
@@ -1022,46 +1171,47 @@ const AttendanceView = ({ db, currentUserId, showAppToast }) => {
     return (
       <div className="flex flex-col items-center justify-center h-full space-y-6">
         <h3 className="text-2xl font-semibold text-gray-800">Select Category to View Attendance</h3>
-        <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 w-full max-w-md">
-          <button
-            onClick={() => setSelectedCategory('Team')}
-            className="flex-1 bg-indigo-500 text-white py-4 px-6 rounded-lg text-xl font-semibold shadow-lg hover:bg-indigo-600 transition duration-300 ease-in-out transform hover:scale-105"
-          >
-            <Users className="inline-block mr-2" size={24} /> Team
-          </button>
-          <button
-            onClick={() => setSelectedCategory('Class')}
-            className="flex-1 bg-purple-500 text-white py-4 px-6 rounded-lg text-xl font-semibold shadow-lg hover:bg-purple-600 transition duration-300 ease-in-out transform hover:scale-105"
-          >
-            <Calendar className="inline-block mr-2" size={24} /> Class
-          </button>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full max-w-2xl">
+          {categories.length === 0 ? (
+            <p className="col-span-full text-center text-gray-600">No categories defined. Please contact an admin.</p>
+          ) : (
+            categories.map(category => (
+              <button
+                key={category.id}
+                onClick={() => setSelectedCategory(category)}
+                className="flex flex-col items-center justify-center bg-white border border-gray-200 rounded-lg p-4 text-center font-semibold shadow-lg hover:bg-gray-50 transition duration-300 ease-in-out transform hover:scale-105 text-lg"
+              >
+                <Icon name={category.icon} size={32} className="mb-2 text-indigo-600" />
+                {category.name}
+              </button>
+            ))
+          )}
         </div>
       </div>
     );
   }
 
   if (!selectedEntity) {
-    const entities = selectedCategory === 'Team' ? teams : classes;
     return (
       <div className="flex flex-col items-center h-full p-4">
         <button
-          onClick={() => setSelectedCategory(null)}
+          onClick={() => { setSelectedCategory(null); setSelectedEntity(null); }}
           className="self-start mb-4 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg flex items-center hover:bg-gray-300 transition duration-200"
         >
-          <ChevronLeft size={20} className="mr-2" /> Back
+          <ChevronLeft size={20} className="mr-2" /> Back to Categories
         </button>
-        <h3 className="text-2xl font-semibold text-center text-gray-800 mb-6">Select {selectedCategory}</h3>
+        <h2 className="text-3xl font-bold text-center text-gray-800 mb-6">Select {selectedCategory.name}</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full max-w-3xl">
           {entities.length === 0 ? (
-            <p className="text-center text-gray-600 col-span-full">No {selectedCategory.toLowerCase()}es available.</p>
+            <p className="text-center text-gray-600 col-span-full">No {selectedCategory.name.toLowerCase()}s available. Please contact an admin.</p>
           ) : (
             entities.map(entity => (
               <button
-                key={entity}
+                key={entity.id}
                 onClick={() => setSelectedEntity(entity)}
                 className="bg-white border border-gray-200 rounded-lg p-4 text-center font-medium shadow hover:shadow-md transition duration-200 transform hover:scale-105 text-lg"
               >
-                {entity}
+                {entity.name}
               </button>
             ))
           )}
@@ -1076,10 +1226,10 @@ const AttendanceView = ({ db, currentUserId, showAppToast }) => {
         onClick={() => setSelectedEntity(null)}
         className="self-start mb-4 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg flex items-center hover:bg-gray-300 transition duration-200"
       >
-        <ChevronLeft size={20} className="mr-2" /> Back to {selectedCategory} Selection
+        <ChevronLeft size={20} className="mr-2" /> Back to {selectedCategory.name} Selection
       </button>
       <h2 className="text-3xl font-bold text-center text-gray-800 mb-6">
-        Attendance for: <span className="text-indigo-600">{selectedEntity}</span>
+        Attendance for: <span className="text-indigo-600">{selectedEntity.name} ({selectedCategory.name})</span>
       </h2>
       <div className="overflow-x-auto rounded-lg shadow">
         <table className="min-w-full bg-white">
@@ -1095,7 +1245,7 @@ const AttendanceView = ({ db, currentUserId, showAppToast }) => {
             {athletes.length === 0 ? (
               <tr>
                 <td colSpan="4" className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
-                  No athletes found for this {selectedCategory.toLowerCase()}.
+                  No athletes found for this {selectedCategory.name.toLowerCase()} {selectedEntity.name}.
                 </td>
               </tr>
             ) : (
@@ -1106,7 +1256,7 @@ const AttendanceView = ({ db, currentUserId, showAppToast }) => {
                   <tr key={athlete.id} className={isCheckedIn ? 'bg-green-50' : 'bg-red-50'}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 flex items-center">
                       <img
-                        src={athlete.profilePicture || `https://placehold.co/30x30/cccccc/333333?text=${athlete.name.charAt(0)}`}
+                        src={athlete.profilePicture || `https://placehold.co/30x30/cccccc/333333?text=${athlete.name ? athlete.name.charAt(0) : '?'}`}
                         alt={athlete.name}
                         className="w-8 h-8 rounded-full mr-3 object-cover border border-gray-200"
                       />
@@ -1114,9 +1264,6 @@ const AttendanceView = ({ db, currentUserId, showAppToast }) => {
                     </td>
                     <td className={`px-6 py-4 whitespace-nowrap text-sm ${isCheckedIn ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}`}>
                       {status}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {lastCheckinTime}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                       {activities}
@@ -1134,15 +1281,15 @@ const AttendanceView = ({ db, currentUserId, showAppToast }) => {
 
 
 // --- Athlete Profiles Component ---
-const AthleteProfiles = ({ db, currentUserId, userRole, showAppToast }) => {
+const AthleteProfiles = ({ db, currentUserId, userRole, loggedInUserName, publicDataPath, privateUserDataPath, COLLECTIONS, showAppToast, deviceType }) => {
   const [athletes, setAthletes] = useState([]);
   const [filterText, setFilterText] = useState('');
   const [showAddAthleteModal, setShowAddAthleteModal] = useState(false);
-  const [editingAthlete, setEditingAthlete] = useState(null); // null or athlete object for editing
+  const [editingAthlete, setEditingAthlete] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [athleteToDelete, setAthleteToDelete] = useState(null);
 
-  // Fetch athletes in real-time
+  // Fetch athletes in real-time from private user data
   useEffect(() => {
     if (!db || !currentUserId) return;
     const athletesRef = collection(db, privateUserDataPath(currentUserId), COLLECTIONS.ATHLETES);
@@ -1154,16 +1301,19 @@ const AthleteProfiles = ({ db, currentUserId, userRole, showAppToast }) => {
       showAppToast(`Error loading athletes: ${error.message}`, 'error');
     });
     return () => unsubscribe();
-  }, [db, currentUserId, showAppToast]);
+  }, [db, currentUserId, privateUserDataPath, COLLECTIONS.ATHLETES, showAppToast]);
 
+  // Filter athletes based on search text
   const filteredAthletes = athletes.filter(athlete =>
     athlete.name.toLowerCase().includes(filterText.toLowerCase()) ||
-    athlete.teams.some(team => team.toLowerCase().includes(filterText.toLowerCase())) ||
-    athlete.classes.some(cls => cls.toLowerCase().includes(filterText.toLowerCase()))
+    (athlete.associatedEntities && athlete.associatedEntities.some(entity =>
+      entity.name?.toLowerCase().includes(filterText.toLowerCase()) ||
+      entity.categoryId?.toLowerCase().includes(filterText.toLowerCase())
+    ))
   );
 
   const handleAddAthleteClick = () => {
-    setEditingAthlete(null); // Ensure we are adding, not editing
+    setEditingAthlete(null);
     setShowAddAthleteModal(true);
   };
 
@@ -1222,7 +1372,7 @@ const AthleteProfiles = ({ db, currentUserId, userRole, showAppToast }) => {
             <div key={athlete.id} className="bg-white border border-gray-200 rounded-xl shadow-lg p-6 flex flex-col">
               <div className="flex items-center mb-4">
                 <img
-                  src={athlete.profilePicture || `https://placehold.co/80x80/cccccc/333333?text=${athlete.name.charAt(0)}`}
+                  src={athlete.profilePicture || `https://placehold.co/80x80/cccccc/333333?text=${athlete.name ? athlete.name.charAt(0) : '?'}`}
                   alt={athlete.name}
                   className="w-20 h-20 rounded-full mr-4 object-cover border-2 border-indigo-300"
                 />
@@ -1233,8 +1383,12 @@ const AthleteProfiles = ({ db, currentUserId, userRole, showAppToast }) => {
                   </p>
                 </div>
               </div>
-              <p className="text-gray-700 mb-2"><span className="font-semibold">Teams:</span> {athlete.teams.join(', ') || 'N/A'}</p>
-              <p className="text-gray-700 mb-2"><span className="font-semibold">Classes:</span> {athlete.classes.join(', ') || 'N/A'}</p>
+              <p className="text-gray-700 mb-2">
+                <span className="font-semibold">Associated with:</span>{' '}
+                {athlete.associatedEntities && athlete.associatedEntities.length > 0
+                  ? athlete.associatedEntities.map(e => `${e.name} (${e.categoryId})`).join(', ')
+                  : 'N/A'}
+              </p>
               <p className="text-gray-700 mb-4"><span className="font-semibold">Improvement Areas:</span> {athlete.improvementAreas || 'N/A'}</p>
 
               {/* Skills Section */}
@@ -1275,7 +1429,7 @@ const AthleteProfiles = ({ db, currentUserId, userRole, showAppToast }) => {
                     >
                       <Edit size={20} />
                     </button>
-                    {userRole === 'admin' && ( // Only admin can delete
+                    {userRole === 'admin' && (
                       <button
                         onClick={() => handleDeleteAthleteClick(athlete)}
                         className="text-red-600 hover:text-red-800 transition-colors"
@@ -1300,6 +1454,10 @@ const AthleteProfiles = ({ db, currentUserId, userRole, showAppToast }) => {
           onClose={() => setShowAddAthleteModal(false)}
           athleteToEdit={editingAthlete}
           userRole={userRole}
+          loggedInUserName={loggedInUserName}
+          publicDataPath={publicDataPath}
+          privateUserDataPath={privateUserDataPath}
+          COLLECTIONS={COLLECTIONS}
         />
       )}
 
@@ -1317,37 +1475,48 @@ const AthleteProfiles = ({ db, currentUserId, userRole, showAppToast }) => {
 
 
 // --- Athlete Form Modal (Add/Edit Athlete) ---
-const AthleteFormModal = ({ db, currentUserId, showAppToast, onClose, athleteToEdit, userRole }) => {
+const AthleteFormModal = ({ db, currentUserId, showAppToast, onClose, athleteToEdit, userRole, loggedInUserName, publicDataPath, privateUserDataPath, COLLECTIONS }) => {
   const [name, setName] = useState('');
-  const [teams, setTeams] = useState(''); // Comma-separated string
-  const [classes, setClasses] = useState(''); // Comma-separated string
+  const [associatedEntities, setAssociatedEntities] = useState([]);
   const [skills, setSkills] = useState([{ name: '', status: 'Not Started' }]);
   const [improvementAreas, setImprovementAreas] = useState('');
-  const [coachNotes, setCoachNotes] = useState([]); // Array of {date, text}
+  const [coachNotes, setCoachNotes] = useState([]);
   const [newNoteText, setNewNoteText] = useState('');
-  const [parentName, setParentName] = useState('');
-  const [parentPhone, setParentPhone] = useState('');
-  const [parentEmail, setParentEmail] = useState('');
-  const [emergencyContactName, setEmergencyContactName] = useState('');
-  const [emergencyContactPhone, setEmergencyContactPhone] = useState('');
   const [isApproved, setIsApproved] = useState(false);
   const [profilePicture, setProfilePicture] = useState('');
 
+  const [allCategories, setAllCategories] = useState([]);
+  const [allEntities, setAllEntities] = useState([]);
+
   const isEditing = !!athleteToEdit;
 
+  // Fetch all categories and entities for dropdowns from public data
+  useEffect(() => {
+    if (!db) return;
+    const categoriesRef = collection(db, publicDataPath, COLLECTIONS.LOOKUP_CATEGORIES);
+    const entitiesRef = collection(db, publicDataPath, COLLECTIONS.LOOKUP_ENTITIES);
+
+    const unsubscribeCategories = onSnapshot(categoriesRef, (snapshot) => {
+      setAllCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+    const unsubscribeEntities = onSnapshot(entitiesRef, (snapshot) => {
+      setAllEntities(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
+    return () => {
+      unsubscribeCategories();
+      unsubscribeEntities();
+    };
+  }, [db, publicDataPath, COLLECTIONS.LOOKUP_CATEGORIES, COLLECTIONS.LOOKUP_ENTITIES]);
+
+  // Populate form fields if editing an existing athlete
   useEffect(() => {
     if (athleteToEdit) {
       setName(athleteToEdit.name || '');
-      setTeams(athleteToEdit.teams ? athleteToEdit.teams.join(', ') : '');
-      setClasses(athleteToEdit.classes ? athleteToEdit.classes.join(', ') : '');
+      setAssociatedEntities(athleteToEdit.associatedEntities || []);
       setSkills(athleteToEdit.skills && athleteToEdit.skills.length > 0 ? athleteToEdit.skills : [{ name: '', status: 'Not Started' }]);
       setImprovementAreas(athleteToEdit.improvementAreas || '');
       setCoachNotes(athleteToEdit.coachNotes || []);
-      setParentName(athleteToEdit.parentName || '');
-      setParentPhone(athleteToEdit.parentPhone || '');
-      setParentEmail(athleteToEdit.parentEmail || '');
-      setEmergencyContactName(athleteToEdit.emergencyContactName || '');
-      setEmergencyContactPhone(athleteToEdit.emergencyContactPhone || '');
       setIsApproved(athleteToEdit.isApproved || false);
       setProfilePicture(athleteToEdit.profilePicture || '');
     }
@@ -1372,7 +1541,7 @@ const AthleteFormModal = ({ db, currentUserId, showAppToast, onClose, athleteToE
     if (newNoteText.trim()) {
       const newNote = {
         date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
-        text: newNoteText.trim()
+        text: newNoteText.trim(),
       };
       setCoachNotes([...coachNotes, newNote]);
       setNewNoteText('');
@@ -1384,6 +1553,21 @@ const AthleteFormModal = ({ db, currentUserId, showAppToast, onClose, athleteToE
     setCoachNotes(newNotes);
   };
 
+  // Handle selection/deselection of associated entities
+  const handleEntitySelection = (entityId, categoryId, isChecked) => {
+    const entity = allEntities.find(e => e.id === entityId && e.categoryId === categoryId);
+    if (!entity) return;
+
+    if (isChecked) {
+      // Add entity if not already associated
+      if (!associatedEntities.some(e => e.id === entity.id && e.categoryId === categoryId)) {
+        setAssociatedEntities(prev => [...prev, { id: entity.id, name: entity.name, categoryId: entity.categoryId }]);
+      }
+    } else {
+      // Remove entity if unselected
+      setAssociatedEntities(prev => prev.filter(e => !(e.id === entity.id && e.categoryId === categoryId)));
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -1395,35 +1579,30 @@ const AthleteFormModal = ({ db, currentUserId, showAppToast, onClose, athleteToE
 
     const athleteData = {
       name: name.trim(),
-      teams: teams.split(',').map(t => t.trim()).filter(Boolean),
-      classes: classes.split(',').map(c => c.trim()).filter(Boolean),
-      skills: skills.filter(s => s.name.trim()),
+      associatedEntities: associatedEntities,
+      skills: skills.filter(s => s.name.trim()), // Filter out empty skill names
       improvementAreas: improvementAreas.trim(),
       coachNotes: coachNotes,
-      parentName: parentName.trim(),
-      parentPhone: parentPhone.trim(),
-      parentEmail: parentEmail.trim(),
-      emergencyContactName: emergencyContactName.trim(),
-      emergencyContactPhone: emergencyContactPhone.trim(),
       isApproved: isApproved,
-      profilePicture: profilePicture || `https://placehold.co/100x100/cccccc/333333?text=${name.charAt(0)}`,
+      profilePicture: profilePicture || `https://placehold.co/100x100/cccccc/333333?text=${name ? name.charAt(0) : '?' }`,
     };
 
     try {
       if (isEditing) {
+        // Update existing athlete
         await setDoc(doc(db, privateUserDataPath(currentUserId), COLLECTIONS.ATHLETES, athleteToEdit.id), athleteData);
         showAppToast(`Athlete ${name} updated successfully!`);
       } else {
-        // Add athlete without a specific ID, let Firestore generate one
+        // Add new athlete
         await addDoc(collection(db, privateUserDataPath(currentUserId), COLLECTIONS.ATHLETES), {
           ...athleteData,
-          addedByCoach: userRole === 'coach' ? 'Coach' : 'Admin', // Track who added/approved
+          addedByCoach: loggedInUserName || userRole, // Track who added/approved the athlete
         });
         showAppToast(`Athlete ${name} added successfully!`);
       }
-      onClose();
+      onClose(); // Close modal on successful submission
     } catch (error) {
-      console.error(`Error ${isEditing ? 'updating' : 'adding'} athlete:`, error);
+      console.error(`Error ${isEditing ? 'updating' : 'add'} athlete:`, error);
       showAppToast(`Failed to ${isEditing ? 'update' : 'add'} athlete: ${error.message}`, 'error');
     }
   };
@@ -1442,19 +1621,38 @@ const AthleteFormModal = ({ db, currentUserId, showAppToast, onClose, athleteToE
           <input type="url" id="profilePicture" value={profilePicture} onChange={(e) => setProfilePicture(e.target.value)}
             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
             {profilePicture && (
-              <img src={profilePicture} alt="Profile Preview" className="w-20 h-20 rounded-full mt-2 object-cover" />
+              <img src={profilePicture || `https://placehold.co/100x100/cccccc/333333?text=${name ? name.charAt(0) : '?'}`} alt="Profile Preview" className="w-20 h-20 rounded-full mt-2 object-cover" />
             )}
         </div>
-        <div>
-          <label htmlFor="teams" className="block text-sm font-medium text-gray-700">Teams (comma-separated)</label>
-          <input type="text" id="teams" value={teams} onChange={(e) => setTeams(e.target.value)}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+        
+        {/* Associated Entities Section */}
+        <div className="border border-gray-200 rounded-md p-4">
+          <h4 className="text-lg font-semibold text-gray-800 mb-3">Associated Teams/Classes/Groups</h4>
+          {allCategories.map(category => (
+            <div key={category.id} className="mb-4">
+              <p className="font-semibold text-gray-700 mb-2">{category.name}s:</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {allEntities.filter(entity => entity.categoryId === category.id).length === 0 ? (
+                  <p className="text-sm text-gray-500 col-span-full">No {category.name.toLowerCase()} entities available.</p>
+                ) : (
+                  allEntities.filter(entity => entity.categoryId === category.id).map(entity => (
+                    <label key={entity.id} className="inline-flex items-center text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        value={entity.id}
+                        checked={associatedEntities.some(e => e.id === entity.id && e.categoryId === category.id)}
+                        onChange={(e) => handleEntitySelection(entity.id, category.id, e.target.checked)}
+                        className="form-checkbox h-4 w-4 text-indigo-600 rounded"
+                      />
+                      <span className="ml-2">{entity.name}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+            </div>
+          ))}
         </div>
-        <div>
-          <label htmlFor="classes" className="block text-sm font-medium text-gray-700">Classes (comma-separated)</label>
-          <input type="text" id="classes" value={classes} onChange={(e) => setClasses(e.target.value)}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-        </div>
+
         <div>
           <label htmlFor="improvementAreas" className="block text-sm font-medium text-gray-700">Improvement Areas</label>
           <textarea id="improvementAreas" value={improvementAreas} onChange={(e) => setImprovementAreas(e.target.value)} rows="3"
@@ -1517,36 +1715,7 @@ const AthleteFormModal = ({ db, currentUserId, showAppToast, onClose, athleteToE
           </div>
         </div>
 
-        {/* Parent/Emergency Contact Info */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="parentName" className="block text-sm font-medium text-gray-700">Parent/Guardian Name</label>
-            <input type="text" id="parentName" value={parentName} onChange={(e) => setParentName(e.target.value)}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-          </div>
-          <div>
-            <label htmlFor="parentPhone" className="block text-sm font-medium text-gray-700">Parent/Guardian Phone</label>
-            <input type="tel" id="parentPhone" value={parentPhone} onChange={(e) => setParentPhone(e.target.value)}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-          </div>
-          <div>
-            <label htmlFor="parentEmail" className="block text-sm font-medium text-gray-700">Parent/Guardian Email</label>
-            <input type="email" id="parentEmail" value={parentEmail} onChange={(e) => setParentEmail(e.target.value)}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-          </div>
-          <div>
-            <label htmlFor="emergencyContactName" className="block text-sm font-medium text-gray-700">Emergency Contact Name</label>
-            <input type="text" id="emergencyContactName" value={emergencyContactName} onChange={(e) => setEmergencyContactName(e.target.value)}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-          </div>
-          <div>
-            <label htmlFor="emergencyContactPhone" className="block text-sm font-medium text-gray-700">Emergency Contact Phone</label>
-            <input type="tel" id="emergencyContactPhone" value={emergencyContactPhone} onChange={(e) => setEmergencyContactPhone(e.target.value)}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-          </div>
-        </div>
-
-        {userRole === 'admin' && ( // Only admin can approve/disapprove
+        {userRole === 'admin' && (
           <div className="flex items-center">
             <input
               type="checkbox"
@@ -1555,7 +1724,7 @@ const AthleteFormModal = ({ db, currentUserId, showAppToast, onClose, athleteToE
               onChange={(e) => setIsApproved(e.target.checked)}
               className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
             />
-            <label htmlFor="isApproved" className="ml-2 block text-sm text-gray-900">Approved</label>
+            <label htmlFor="isApproved" className="ml-2 block text-sm text-gray-900 font-semibold">Approved</label>
           </div>
         )}
 
@@ -1576,15 +1745,15 @@ const AthleteFormModal = ({ db, currentUserId, showAppToast, onClose, athleteToE
 
 
 // --- Coach Management Component ---
-const CoachManagement = ({ db, currentUserId, userRole, showAppToast }) => {
+const CoachManagement = ({ db, currentUserId, userRole, publicDataPath, privateUserDataPath, COLLECTIONS, showAppToast, deviceType }) => {
   const [coaches, setCoaches] = useState([]);
   const [filterText, setFilterText] = useState('');
   const [showAddCoachModal, setShowAddCoachModal] = useState(false);
-  const [editingCoach, setEditingCoach] = useState(null); // null or coach object for editing
+  const [editingCoach, setEditingCoach] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [coachToDelete, setCoachToDelete] = useState(null);
 
-  // Fetch coaches in real-time
+  // Fetch coaches in real-time from private user data
   useEffect(() => {
     if (!db || !currentUserId) return;
     const coachesRef = collection(db, privateUserDataPath(currentUserId), COLLECTIONS.COACHES);
@@ -1596,13 +1765,16 @@ const CoachManagement = ({ db, currentUserId, userRole, showAppToast }) => {
       showAppToast(`Error loading coaches: ${error.message}`, 'error');
     });
     return () => unsubscribe();
-  }, [db, currentUserId, showAppToast]);
+  }, [db, currentUserId, privateUserDataPath, COLLECTIONS.COACHES, showAppToast]);
 
+  // Filter coaches based on search text
   const filteredCoaches = coaches.filter(coach =>
     coach.name.toLowerCase().includes(filterText.toLowerCase()) ||
     coach.email.toLowerCase().includes(filterText.toLowerCase()) ||
-    coach.teams.some(team => team.toLowerCase().includes(filterText.toLowerCase())) ||
-    coach.classes.some(cls => cls.toLowerCase().includes(filterText.toLowerCase()))
+    (coach.associatedEntities && coach.associatedEntities.some(entity =>
+      entity.name?.toLowerCase().includes(filterText.toLowerCase()) ||
+      entity.categoryId?.toLowerCase().includes(filterText.toLowerCase())
+    ))
   );
 
   const handleAddCoachClick = () => {
@@ -1635,15 +1807,6 @@ const CoachManagement = ({ db, currentUserId, userRole, showAppToast }) => {
     }
   };
 
-  if (userRole !== 'admin') {
-    return (
-      <div className="text-center py-10 text-gray-600">
-        <p className="text-lg font-semibold">Admin access required to manage coaches.</p>
-        <p className="text-sm">Please log in as an administrator to view this section.</p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <h3 className="text-2xl font-bold text-gray-800 mb-4">Coach Management</h3>
@@ -1656,12 +1819,14 @@ const CoachManagement = ({ db, currentUserId, userRole, showAppToast }) => {
           value={filterText}
           onChange={(e) => setFilterText(e.target.value)}
         />
-        <button
-          onClick={handleAddCoachClick}
-          className="w-full sm:w-auto bg-indigo-600 text-white py-2 px-6 rounded-lg font-semibold shadow-md hover:bg-indigo-700 flex items-center justify-center transition duration-200"
-        >
-          <Plus size={20} className="mr-2" /> Add New Coach
-        </button>
+        {userRole === 'admin' && ( // Only admins can add new coaches
+          <button
+            onClick={handleAddCoachClick}
+            className="w-full sm:w-auto bg-indigo-600 text-white py-2 px-6 rounded-lg font-semibold shadow-md hover:bg-indigo-700 flex items-center justify-center transition duration-200"
+          >
+            <Plus size={20} className="mr-2" /> Add New Coach
+          </button>
+        )}
       </div>
 
       {filteredCoaches.length === 0 ? (
@@ -1672,30 +1837,38 @@ const CoachManagement = ({ db, currentUserId, userRole, showAppToast }) => {
             <div key={coach.id} className="bg-white border border-gray-200 rounded-xl shadow-lg p-6 flex flex-col">
               <h4 className="text-xl font-bold text-gray-900 mb-2">{coach.name}</h4>
               <p className="text-gray-700 text-sm mb-1">Email: {coach.email}</p>
-              <p className="text-700 text-sm mb-2">Phone: {coach.phone}</p>
-              <p className="text-gray-700 text-sm mb-2"><span className="font-semibold">Passcode:</span> {coach.passcode}</p>
+              <p className="text-gray-700 text-sm mb-2">Phone: {formatPhoneNumber(coach.phone)}</p>
+              {userRole === 'admin' && ( // Passcode visible only to admins
+                <p className="text-gray-700 text-sm mb-2"><span className="font-semibold">Passcode:</span> {coach.passcode}</p>
+              )}
               <p className={`text-sm font-semibold mb-2 ${coach.isApproved ? 'text-green-600' : 'text-red-600'}`}>
                 {coach.isApproved ? 'Approved' : 'Pending Approval'}
               </p>
-              <p className="text-gray-700 text-sm mb-2"><span className="font-semibold">Teams:</span> {coach.teams.join(', ') || 'N/A'}</p>
-              <p className="text-gray-700 text-sm mb-4"><span className="font-semibold">Classes:</span> {coach.classes.join(', ') || 'N/A'}</p>
+              <p className="text-gray-700 text-sm mb-2">
+                <span className="font-semibold">Associated with:</span>{' '}
+                {coach.associatedEntities && coach.associatedEntities.length > 0
+                  ? coach.associatedEntities.map(e => `${e.name} (${e.categoryId})`).join(', ')
+                  : 'N/A'}
+              </p>
 
-              <div className="mt-auto flex justify-end space-x-2 pt-4 border-t border-gray-100">
-                <button
-                  onClick={() => handleEditCoachClick(coach)}
-                  className="text-indigo-600 hover:text-indigo-800 transition-colors"
-                  title="Edit Coach"
-                >
-                  <Edit size={20} />
-                </button>
-                <button
-                  onClick={() => handleDeleteCoachClick(coach)}
-                  className="text-red-600 hover:text-red-800 transition-colors"
-                  title="Delete Coach"
-                >
-                  <Trash2 size={20} />
-                </button>
-              </div>
+              {userRole === 'admin' && ( // Edit and Delete buttons visible only to admins
+                <div className="mt-auto flex justify-end space-x-2 pt-4 border-t border-gray-100">
+                  <button
+                    onClick={() => handleEditCoachClick(coach)}
+                    className="text-indigo-600 hover:text-indigo-800 transition-colors"
+                    title="Edit Coach"
+                  >
+                    <Edit size={20} />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteCoachClick(coach)}
+                    className="text-red-600 hover:text-red-800 transition-colors"
+                    title="Delete Coach"
+                  >
+                    <Trash2 size={20} />
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -1708,6 +1881,9 @@ const CoachManagement = ({ db, currentUserId, userRole, showAppToast }) => {
           showAppToast={showAppToast}
           onClose={() => setShowAddCoachModal(false)}
           coachToEdit={editingCoach}
+          publicDataPath={publicDataPath}
+          privateUserDataPath={privateUserDataPath}
+          COLLECTIONS={COLLECTIONS}
         />
       )}
 
@@ -1841,10 +2017,37 @@ const CoachFormModal = ({ db, currentUserId, showAppToast, onClose, coachToEdit 
 };
 
 // --- Check-in Logs Component ---
-const CheckinLogs = ({ db, currentUserId, userRole, showAppToast }) => {
+const CheckinLogs = ({ db, currentUserId, userRole, publicDataPath, privateUserDataPath, COLLECTIONS, showAppToast, deviceType }) => {
   const [historicalLogs, setHistoricalLogs] = useState([]);
-  const [selectedLog, setSelectedLog] = useState(null); // For viewing details of a specific daily log
+  const [selectedLog, setSelectedLog] = useState(null);
+  const [filterAthleteName, setFilterAthleteName] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterEntity, setFilterEntity] = useState('');
 
+  const [allCategories, setAllCategories] = useState([]);
+  const [allEntities, setAllEntities] = useState([]);
+
+  // Fetch all categories and entities for filter dropdowns from public data
+  useEffect(() => {
+    if (!db) return;
+    const categoriesRef = collection(db, publicDataPath, COLLECTIONS.LOOKUP_CATEGORIES);
+    const entitiesRef = collection(db, publicDataPath, COLLECTIONS.LOOKUP_ENTITIES);
+
+    const unsubscribeCategories = onSnapshot(categoriesRef, (snapshot) => {
+      setAllCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => a.name.localeCompare(b.name)));
+    });
+    const unsubscribeEntities = onSnapshot(entitiesRef, (snapshot) => {
+      setAllEntities(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => a.name.localeCompare(b.name)));
+    });
+
+    return () => {
+      unsubscribeCategories();
+      unsubscribeEntities();
+    };
+  }, [db, publicDataPath, COLLECTIONS.LOOKUP_CATEGORIES, COLLECTIONS.LOOKUP_ENTITIES]);
+
+
+  // Fetch historical check-in logs from public data
   useEffect(() => {
     if (!db || !currentUserId) return;
     const logsRef = collection(db, publicDataPath, COLLECTIONS.HISTORICAL_CHECKIN_LOGS);
@@ -1854,15 +2057,28 @@ const CheckinLogs = ({ db, currentUserId, userRole, showAppToast }) => {
       setHistoricalLogs(fetchedLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
     }, (error) => {
       console.error("Error fetching historical check-in logs:", error);
-      showAppToast(`Error loading logs: ${e.message}`, 'error');
+      showAppToast(`Error loading logs: ${error.message}`, 'error');
     });
     return () => unsubscribe();
-  }, [db, currentUserId, showAppToast]);
+  }, [db, currentUserId, publicDataPath, COLLECTIONS.HISTORICAL_CHECKIN_LOGS, showAppToast]);
 
   const viewLogDetails = (log) => {
     setSelectedLog(log);
+    // Reset filters when viewing new log details
+    setFilterAthleteName('');
+    setFilterCategory('');
+    setFilterEntity('');
   };
 
+  // Filter check-in events within a selected log based on user input
+  const filteredCheckInEvents = selectedLog?.dailyCheckInEvents?.filter(event => {
+    const matchesAthlete = filterAthleteName ? event.athleteName.toLowerCase().includes(filterAthleteName.toLowerCase()) : true;
+    const matchesCategory = filterCategory ? event.checkInCategoryId === filterCategory : true;
+    const matchesEntity = filterEntity ? event.checkInEntityId === filterEntity : true;
+    return matchesAthlete && matchesCategory && matchesEntity;
+  }) || [];
+
+  // Restrict access to admin only
   if (userRole !== 'admin') {
     return (
       <div className="text-center py-10 text-gray-600">
@@ -1906,28 +2122,491 @@ const CheckinLogs = ({ db, currentUserId, userRole, showAppToast }) => {
 
       {selectedLog && (
         <Modal isOpen={true} title={`Check-in Log Details for ${new Date(selectedLog.timestamp).toLocaleDateString()}`} onClose={() => setSelectedLog(null)}>
-          <div className="max-h-[60vh] overflow-y-auto">
-            <p className="text-gray-700 mb-4"><strong>Total Athletes Checked In:</strong> {selectedLog.dailyCheckInEvents?.length || 0}</p>
-            {selectedLog.dailyCheckinEvents && selectedLog.dailyCheckinEvents.length > 0 ? (
-              <ul className="divide-y divide-gray-200 border border-gray-200 rounded-lg">
-                {selectedLog.dailyCheckInEvents.map((event, index) => (
-                  <li key={index} className="p-3">
-                    <p className="font-semibold text-gray-800">{event.athleteName}</p>
-                    <p className="text-sm text-gray-600">
-                      Type: <span className="capitalize">{event.checkInType}</span>, Entity: {event.checkInEntity}
+          <div className="flex flex-col sm:flex-row sm:space-x-4 mb-4 space-y-4 sm:space-y-0 flex-wrap">
+            <input
+              type="text"
+              placeholder="Filter by athlete name"
+              value={filterAthleteName}
+              onChange={(e) => setFilterAthleteName(e.target.value)}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-base"
+            />
+            <select
+              value={filterCategory}
+              onChange={(e) => { setFilterCategory(e.target.value); setFilterEntity(''); }}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white focus:ring-indigo-500 focus:border-indigo-500 text-base"
+            >
+              <option value="">Filter by Category</option>
+              {allCategories.map(category => (
+                <option key={category.id} value={category.id}>{category.name}</option>
+              ))}
+            </select>
+            <select
+              value={filterEntity}
+              onChange={(e) => setFilterEntity(e.target.value)}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white focus:ring-indigo-500 focus:border-indigo-500 text-base"
+              disabled={!filterCategory} // Disable entity filter until a category is selected
+            >
+              <option value="">Filter by Entity</option>
+              {allEntities.filter(entity => entity.categoryId === filterCategory).map(entity => (
+                <option key={entity.id} value={entity.id}>{entity.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="max-h-[60vh] overflow-y-auto space-y-4 pr-2"> {/* Added pr-2 for scrollbar */}
+            <p className="text-gray-700 font-medium mb-4"><strong>Total Filtered Check-ins:</strong> {filteredCheckInEvents.length}</p>
+            {filteredCheckInEvents.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredCheckInEvents.map((event, index) => (
+                  <div key={index} className="bg-white border border-gray-200 rounded-lg p-4 shadow-md">
+                    <p className="font-bold text-gray-900 text-lg mb-1">{event.athleteName}</p>
+                    <p className="text-sm text-gray-700 mb-1">
+                      <span className="font-semibold capitalize">{event.checkInCategoryName}</span>: {event.checkInEntityName}
                     </p>
                     <p className="text-xs text-gray-500">
-                      Time: {new Date(event.timestamp).toLocaleTimeString()}
+                      Checked In: {new Date(event.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
-                  </li>
+                  </div>
                 ))}
-              </ul>
+              </div>
             ) : (
-              <p className="text-gray-600 text-center">No check-ins recorded for this log.</p>
+              <p className="text-gray-600 text-center py-8">No check-ins found for the applied filters in this log.</p>
             )}
           </div>
         </Modal>
       )}
     </div>
+  );
+};
+
+
+// --- New Component: Category and Entity Management ---
+const CategoryEntityManagement = ({ db, currentUserId, publicDataPath, privateUserDataPath, COLLECTIONS, showAppToast, deviceType }) => {
+  const [categories, setCategories] = useState([]);
+  const [entities, setEntities] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [confirmDeleteCategory, setConfirmDeleteCategory] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState(null);
+
+  const [showEntityModal, setShowEntityModal] = useState(false);
+  const [editingEntity, setEditingEntity] = useState(null);
+  const [confirmDeleteEntity, setConfirmDeleteEntity] = useState(false);
+  const [entityToDelete, setEntityToDelete] = useState(null);
+
+  // Fetch all categories from public data
+  useEffect(() => {
+    if (!db) return;
+    const categoriesRef = collection(db, publicDataPath, COLLECTIONS.LOOKUP_CATEGORIES);
+    const unsubscribe = onSnapshot(categoriesRef, (snapshot) => {
+      setCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => a.name.localeCompare(b.name)));
+    }, (error) => {
+      console.error("Error fetching categories:", error);
+      showAppToast(`Error loading categories: ${error.message}`, 'error');
+    });
+    return () => unsubscribe();
+  }, [db, publicDataPath, COLLECTIONS.LOOKUP_CATEGORIES, showAppToast]);
+
+  // Fetch entities for the selected category from public data
+  useEffect(() => {
+    if (!db || !selectedCategory?.id) {
+      setEntities([]);
+      return;
+    }
+    const entitiesRef = collection(db, publicDataPath, COLLECTIONS.LOOKUP_ENTITIES);
+    const q = query(entitiesRef, where('categoryId', '==', selectedCategory.id));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setEntities(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => a.name.localeCompare(b.name)));
+    }, (error) => {
+      console.error("Error fetching entities:", error);
+      showAppToast(`Error loading entities: ${error.message}`, 'error');
+    });
+    return () => unsubscribe();
+  }, [db, publicDataPath, COLLECTIONS.LOOKUP_ENTITIES, selectedCategory, showAppToast]);
+
+
+  // --- Category Handlers ---
+  const handleAddCategoryClick = () => {
+    setEditingCategory(null);
+    setShowCategoryModal(true);
+  };
+
+  const handleEditCategoryClick = (category) => {
+    setEditingCategory(category);
+    setShowCategoryModal(true);
+  };
+
+  const handleDeleteCategoryClick = (category) => {
+    setCategoryToDelete(category);
+    setConfirmDeleteCategory(true);
+  };
+
+  const confirmDeleteSelectedCategory = async () => {
+    if (!db || !categoryToDelete) return;
+
+    try {
+      const entitiesRef = collection(db, publicDataPath, COLLECTIONS.LOOKUP_ENTITIES);
+      // Check if there are any entities associated with this category
+      const q = query(entitiesRef, where('categoryId', '==', categoryToDelete.id));
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        showAppToast(`Cannot delete category "${categoryToDelete.name}" because it has associated entities. Delete entities first.`, 'error');
+        setConfirmDeleteCategory(false);
+        setCategoryToDelete(null);
+        return;
+      }
+
+      await deleteDoc(doc(db, publicDataPath, COLLECTIONS.LOOKUP_CATEGORIES, categoryToDelete.id));
+      showAppToast(`Category "${categoryToDelete.name}" deleted successfully!`);
+    } catch (error) {
+      console.error("Error deleting category:", error);
+      showAppToast(`Failed to delete category: ${error.message}`, 'error');
+    } finally {
+      setConfirmDeleteCategory(false);
+      setCategoryToDelete(null);
+    }
+  };
+
+  // --- Entity Handlers ---
+  const handleAddEntityClick = () => {
+    setEditingEntity(null);
+    setShowEntityModal(true);
+  };
+
+  const handleEditEntityClick = (entity) => {
+    setEditingEntity(entity);
+    setShowEntityModal(true);
+  };
+
+  const handleDeleteEntityClick = (entity) => {
+    setEntityToDelete(entity);
+    setConfirmDeleteEntity(true);
+  };
+
+  const confirmDeleteSelectedEntity = async () => {
+    if (!db || !entityToDelete) return;
+
+    try {
+      await deleteDoc(doc(db, publicDataPath, COLLECTIONS.LOOKUP_ENTITIES, entityToDelete.id));
+      showAppToast(`Entity "${entityToDelete.name}" deleted successfully!`);
+    } catch (error) {
+      console.error("Error deleting entity:", error);
+      showAppToast(`Failed to delete entity: ${error.message}`, 'error');
+    } finally {
+      setConfirmDeleteEntity(false);
+      setEntityToDelete(null);
+    }
+  };
+
+
+  return (
+    <div className="space-y-8 p-4">
+      <h3 className="text-2xl font-bold text-gray-800 mb-6">Categories & Entities Management</h3>
+
+      {/* Category Management Section */}
+      <div className="bg-gray-50 p-6 rounded-xl shadow-md border border-gray-200">
+        <div className="flex justify-between items-center mb-4">
+          <h4 className="text-xl font-semibold text-gray-800">Manage Categories</h4>
+          <button
+            onClick={handleAddCategoryClick}
+            className="bg-indigo-600 text-white py-2 px-4 rounded-lg font-semibold shadow-md hover:bg-indigo-700 flex items-center transition"
+          >
+            <Plus size={18} className="mr-2" /> Add Category
+          </button>
+        </div>
+        
+        {categories.length === 0 ? (
+          <p className="text-center text-gray-600 py-4">No categories defined yet.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {categories.map(category => (
+              <div key={category.id} className="bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-between shadow-sm">
+                <div className="flex items-center">
+                  <Icon name={category.icon} size={24} className="mr-3 text-purple-600" />
+                  <span className="font-medium text-gray-800">{category.name}</span>
+                </div>
+                <div className="flex space-x-2">
+                  <button onClick={() => handleEditCategoryClick(category)} className="text-blue-500 hover:text-blue-700" title="Edit Category"><Edit size={18} /></button>
+                  <button onClick={() => handleDeleteCategoryClick(category)} className="text-red-500 hover:text-red-700" title="Delete Category"><Trash2 size={18} /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Entity Management Section */}
+      <div className="bg-gray-50 p-6 rounded-xl shadow-md border border-gray-200">
+        <h4 className="text-xl font-semibold text-gray-800 mb-4">Manage Entities</h4>
+        <div className="mb-4">
+          <label htmlFor="select-category-for-entities" className="block text-sm font-medium text-gray-700 mb-2">Select Category to Manage Entities:</label>
+          <select
+            id="select-category-for-entities"
+            value={selectedCategory?.id || ''}
+            onChange={(e) => setSelectedCategory(categories.find(c => c.id === e.target.value))}
+            className="w-full md:w-1/2 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
+          >
+            <option value="">-- Select a Category --</option>
+            {categories.map(category => (
+              <option key={category.id} value={category.id}>{category.name}</option>
+            ))}
+          </select>
+        </div>
+
+        {selectedCategory && (
+          <div className="mt-6">
+            <div className="flex justify-between items-center mb-4">
+              <h5 className="text-lg font-semibold text-gray-700">Entities for {selectedCategory.name}</h5>
+              <button
+                onClick={handleAddEntityClick}
+                className="bg-indigo-600 text-white py-2 px-4 rounded-lg font-semibold shadow-md hover:bg-indigo-700 flex items-center transition"
+              >
+                <Plus size={18} className="mr-2" /> Add Entity
+              </button>
+            </div>
+            {entities.length === 0 ? (
+              <p className="text-center text-gray-600 py-4">No entities defined for this category yet.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {entities.map(entity => (
+                  <div key={entity.id} className="bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-between shadow-sm">
+                    <span className="font-medium text-gray-800">{entity.name}</span>
+                    <div className="flex space-x-2">
+                      <button onClick={() => handleEditEntityClick(entity)} className="text-blue-500 hover:text-blue-700" title="Edit Entity"><Edit size={18} /></button>
+                      <button onClick={() => handleDeleteEntityClick(entity)} className="text-red-500 hover:text-red-700" title="Delete Entity"><Trash2 size={18} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Modals for Categories */}
+      {showCategoryModal && (
+        <CategoryFormModal
+          db={db}
+          showAppToast={showAppToast}
+          onClose={() => setShowCategoryModal(false)}
+          categoryToEdit={editingCategory}
+          publicDataPath={publicDataPath}
+          COLLECTIONS={COLLECTIONS}
+        />
+      )}
+      <ConfirmationModal
+        isOpen={confirmDeleteCategory}
+        title="Confirm Category Deletion"
+        message={`Are you sure you want to delete the category "${categoryToDelete?.name}"? All associated entities will also be deleted. This action cannot be undone.`}
+        onConfirm={confirmDeleteSelectedCategory}
+        onCancel={() => setConfirmDeleteCategory(false)}
+        confirmText="Delete Category"
+      />
+
+      {/* Modals for Entities */}
+      {showEntityModal && selectedCategory && (
+        <EntityFormModal
+          db={db}
+          showAppToast={showAppToast}
+          onClose={() => setShowEntityModal(false)}
+          entityToEdit={editingEntity}
+          categoryId={selectedCategory.id}
+          publicDataPath={publicDataPath}
+          COLLECTIONS={COLLECTIONS}
+        />
+      )}
+      <ConfirmationModal
+        isOpen={confirmDeleteEntity}
+        title="Confirm Entity Deletion"
+        message={`Are you sure you want to delete the entity "${entityToDelete?.name}"? This action cannot be undone.`}
+        onConfirm={confirmDeleteSelectedEntity}
+        onCancel={() => setConfirmDeleteEntity(false)}
+        confirmText="Delete Entity"
+      />
+    </div>
+  );
+};
+
+
+// --- New Component: Category Form Modal (Add/Edit Category) ---
+const CategoryFormModal = ({ db, showAppToast, onClose, categoryToEdit, publicDataPath, COLLECTIONS }) => {
+  const [name, setName] = useState('');
+  const [icon, setIcon] = useState('Tag'); // Default icon
+
+  const isEditing = !!categoryToEdit;
+
+  // List of available Lucide React icons (ensure these names match the 'Icon' component's mapping)
+  const availableIcons = ['Users', 'BookOpen', 'Tag', 'Calendar', 'Layers', 'GraduationCap', 'Settings', 'BarChart2', 'User', 'Smartphone', 'Tablet', 'Monitor'];
+
+  // Populate form fields if editing an existing category
+  useEffect(() => {
+    if (categoryToEdit) {
+      setName(categoryToEdit.name || '');
+      setIcon(categoryToEdit.icon || 'Tag');
+    }
+  }, [categoryToEdit]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!db) {
+      showAppToast("App not ready.", 'error');
+      return;
+    }
+
+    // Generate ID from name, or use existing ID if editing
+    const categoryId = isEditing ? categoryToEdit.id : name.trim().toLowerCase().replace(/\s+/g, '-');
+    if (!categoryId) {
+      showAppToast("Category name cannot be empty.", 'error');
+      return;
+    }
+
+    const categoryData = {
+      name: name.trim(),
+      icon: icon,
+    };
+
+    try {
+      if (isEditing) {
+        // Update existing category
+        await setDoc(doc(db, publicDataPath, COLLECTIONS.LOOKUP_CATEGORIES, categoryId), categoryData);
+        showAppToast(`Category "${name}" updated successfully!`);
+      } else {
+        // Check if category with this ID already exists (to prevent duplicates by ID)
+        const docSnap = await getDoc(doc(db, publicDataPath, COLLECTIONS.LOOKUP_CATEGORIES, categoryId));
+        if (docSnap.exists()) {
+          showAppToast(`Category "${name}" already exists. Please choose a different name.`, 'error');
+          return;
+        }
+        // Add new category
+        await setDoc(doc(db, publicDataPath, COLLECTIONS.LOOKUP_CATEGORIES, categoryId), categoryData);
+        showAppToast(`Category "${name}" added successfully!`);
+      }
+      onClose(); // Close modal on successful submission
+    } catch (error) {
+      console.error(`Error ${isEditing ? 'updating' : 'adding'} category:`, error);
+      showAppToast(`Failed to ${isEditing ? 'update' : 'add'} category: ${error.message}`, 'error');
+    }
+  };
+
+  return (
+    <Modal isOpen={true} title={isEditing ? "Edit Category" : "Add New Category"} onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="categoryName" className="block text-sm font-medium text-gray-700">Category Name</label>
+          <input type="text" id="categoryName" value={name} onChange={(e) => setName(e.target.value)} required
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+        </div>
+        <div>
+          <label htmlFor="categoryIcon" className="block text-sm font-medium text-gray-700">Category Icon</label>
+          <select id="categoryIcon" value={icon} onChange={(e) => setIcon(e.target.value)}
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 bg-white">
+            <option value="">Select an icon</option>
+            {availableIcons.map(iconName => (
+              <option key={iconName} value={iconName}>{iconName}</option>
+            ))}
+          </select>
+          <div className="mt-2 flex items-center space-x-2 text-gray-600">
+            Preview: <Icon name={icon} size={24} />
+          </div>
+        </div>
+        <div className="flex justify-end space-x-4 pt-4 border-t border-gray-100">
+          <button type="button" onClick={onClose}
+            className="bg-gray-300 text-gray-800 py-2 px-4 rounded-lg font-semibold hover:bg-gray-400 transition">
+            Cancel
+          </button>
+          <button type="submit"
+            className="bg-indigo-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-indigo-700 transition">
+            {isEditing ? 'Save Changes' : 'Add Category'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+};
+
+
+// --- New Component: Entity Form Modal (Add/Edit Entity) ---
+const EntityFormModal = ({ db, showAppToast, onClose, entityToEdit, categoryId, publicDataPath, COLLECTIONS }) => {
+  const [name, setName] = useState('');
+
+  const isEditing = !!entityToEdit;
+
+  // Populate form fields if editing an existing entity
+  useEffect(() => {
+    if (entityToEdit) {
+      setName(entityToEdit.name || '');
+    }
+  }, [entityToEdit]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!db || !categoryId) {
+      showAppToast("App not ready or category not selected.", 'error');
+      return;
+    }
+
+    // Generate ID from name, or use existing ID if editing
+    const entityId = isEditing ? entityToEdit.id : name.trim().toLowerCase().replace(/\s+/g, '-');
+    if (!entityId) {
+      showAppToast("Entity name cannot be empty.", 'error');
+      return;
+    }
+
+    const entityData = {
+      name: name.trim(),
+      categoryId: categoryId, // Associate entity with the selected category
+    };
+
+    try {
+      if (isEditing) {
+        // Update existing entity
+        await setDoc(doc(db, publicDataPath, COLLECTIONS.LOOKUP_ENTITIES, entityId), entityData);
+        showAppToast(`Entity "${name}" updated successfully!`);
+      } else {
+        // Check if entity with this ID already exists within this category
+        const docSnap = await getDoc(doc(db, publicDataPath, COLLECTIONS.LOOKUP_ENTITIES, entityId));
+        // Only consider it a duplicate if it exists AND belongs to the same category
+        if (docSnap.exists() && docSnap.data().categoryId === categoryId) {
+          showAppToast(`Entity "${name}" already exists in this category. Please choose a different name.`, 'error');
+          return;
+        }
+        // Add new entity
+        await setDoc(doc(db, publicDataPath, COLLECTIONS.LOOKUP_ENTITIES, entityId), entityData);
+        showAppToast(`Entity "${name}" added successfully!`);
+      }
+      onClose(); // Close modal on successful submission
+    } catch (error) {
+      console.error(`Error ${isEditing ? 'updating' : 'add'} entity:`, error);
+      showAppToast(`Failed to ${isEditing ? 'update' : 'add'} entity: ${error.message}`, 'error');
+    }
+  };
+
+  return (
+    <Modal isOpen={true} title={isEditing ? "Edit Entity" : `Add New Entity for ${categoryId}`} onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="entityName" className="block text-sm font-medium text-gray-700">Entity Name</label>
+          <input type="text" id="entityName" value={name} onChange={(e) => setName(e.target.value)} required
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+        </div>
+        <div className="text-sm text-gray-600">
+          Category: <span className="font-semibold">{categoryId}</span> {/* Display the category for context */}
+        </div>
+        <div className="flex justify-end space-x-4 pt-4 border-t border-gray-100">
+          <button type="button" onClick={onClose}
+            className="bg-gray-300 text-gray-800 py-2 px-4 rounded-lg font-semibold hover:bg-gray-400 transition">
+            Cancel
+          </button>
+          <button type="submit"
+            className="bg-indigo-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-indigo-700 transition">
+            {isEditing ? 'Save Changes' : 'Add Entity'}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 };
