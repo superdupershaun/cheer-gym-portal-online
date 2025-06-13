@@ -6,10 +6,7 @@ import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnap
 // Lucide React icons for a modern look
 import { User, Users, Calendar, Settings, ChevronLeft, CheckCircle2, XCircle, BarChart2, Plus, Edit, Trash2, Tag, BookOpen, Layers, GraduationCap, X, Smartphone, Tablet, Monitor } from 'lucide-react';
 
-// --- Global Firebase and App Constants ---
-// Use the Firebase configuration provided by the Canvas environment
-// --- Global Firebase and App Constants ---
-// PLACE YOUR FIREBASE CONFIG HERE:
+// --- Firebase Config ---
 const firebaseConfig = {
   apiKey: "AIzaSyCCS1fFfmH4Y4tXn6Rv7w4baNYrz5VSFLg",
   authDomain: "gym-check-in-d1bf5.firebaseapp.com",
@@ -19,15 +16,12 @@ const firebaseConfig = {
   appId: "1:667813844333:web:84e6746664e0540c933664",
   measurementId: "G-K7WD5R8DDB"
 };
-// End Firebase config
 
-// Use the app ID provided by the Canvas environment, with a fallback
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
-// Use the initial auth token provided by the Canvas environment, with a fallback
 const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-
+// --- SHARED ADMIN USER ID ---
+const SHARED_USER_ID = "admin";
 
 // Firebase app, database, and auth instances will be initialized once.
 let app;
@@ -35,9 +29,7 @@ let db;
 let auth;
 
 // --- Firestore Collection Paths and Names (Global Constants) ---
-// Define public data path based on the application ID.
 const PUBLIC_DATA_PATH = `/artifacts/${appId}/public/data`;
-// Define private user data path as a function that takes the user ID.
 const PRIVATE_USER_DATA_PATH = (userId) => `/artifacts/${appId}/users/${userId}`;
 
 // Centralized collection names for Firestore.
@@ -72,58 +64,35 @@ const initialSeedData = {
     { id: 'coach-jessica', name: 'Coach Jessica', email: 'jessica@cheergym.com', phone: '5553334444', associatedEntities: [{ id: 'power-pumas', name: 'Power Pumas', categoryId: 'team' }, { id: 'jump-drills', name: 'Jump Drills', categoryId: 'class' }], isApproved: true, passcode: '0000' },
   ],
   athletes: [
-    { id: 'athlete-1', name: 'Emily Smith', associatedEntities: [{ id: 'sparkle-squad', name: 'Sparkle Squad', categoryId: 'team' }, { id: 'power-pumas', name: 'Power Pumas', categoryId: 'team' }, { id: 'tumble-basics', name: 'Tumble Basics', categoryId: 'class' }], skills: [{ name: 'Back Handspring', status: 'Working On' }], improvementAreas: 'Needs stronger jumps.', coachNotes: [{ date: '2023-10-26', text: 'Great improvement on conditioning.' }], isApproved: true, addedByCoach: 'Coach Alex', profilePicture: 'https://placehold.co/100x100/A0DAFB/FFFFFF?text=ES' },
-    { id: 'athlete-2', name: 'Mia Johnson', associatedEntities: [{ id: 'sparkle-squad', name: 'Sparkle Squad', categoryId: 'team' }, { id: 'jump-drills', name: 'Jump Drills', categoryId: 'class' }], skills: [{ name: 'Round-off', status: 'Mastered' }], improvementAreas: 'More flexibility.', coachNotes: [{ date: '2023-11-01', text: 'Showing leadership qualities.' }], isApproved: true, addedByCoach: 'Coach Jessica', profilePicture: 'https://placehold.co/100x100/F0B27A/FFFFFF?text=MJ' },
-    { id: 'athlete-3', name: 'Olivia Brown', associatedEntities: [{ id: 'power-pumas', name: 'Power Pumas', categoryId: 'team' }, { id: 'tumble-basics', name: 'Tumble Basics', categoryId: 'class' }], skills: [{ name: 'Flyer Skills', status: 'Not Started' }], improvementAreas: 'Build confidence.', coachNotes: [], isApproved: true, addedByCoach: 'Coach Alex', profilePicture: 'https://placehold.co/100x100/96CEB4/FFFFFF?text=OB' },
-    { id: 'athlete-pending-1', name: 'Sophia Miller', associatedEntities: [], skills: [], improvementAreas: '', coachNotes: [], isApproved: false, addedByCoach: 'Coach Alex', profilePicture: 'https://placehold.co/100x100/DBE2EF/36454F?text=SM' },
+    { id: 'athlete-1', name: 'Emily Smith', associatedEntities: [{ id: 'sparkle-squad', name: 'Sparkle Squad', categoryId: 'team' }, { id: 'power-pumas', name: 'Power Pumas', categoryId: 'team' }, { id: 'tumble-basics', name: 'Tumble Basics', categoryId: 'class' }], skills: [{ name: 'Back Handspring', status: 'Working On' }], improvementAreas: 'Needs stronger jumps.', coachNotes: [{ date: '2023-10-26', text: 'Great improvement on conditioning.' }], isApproved: true, addedByCoach: 'Coach Alex', profilePicture: 'https://placehold.co/100x100/A0DAFB/FFFFFF?text=ES', guardianFirstName: 'John', guardianLastName: 'Smith', guardianPhone: '555-123-4567' },
+    { id: 'athlete-2', name: 'Mia Johnson', associatedEntities: [{ id: 'sparkle-squad', name: 'Sparkle Squad', categoryId: 'team' }, { id: 'jump-drills', name: 'Jump Drills', categoryId: 'class' }], skills: [{ name: 'Round-off', status: 'Mastered' }], improvementAreas: 'More flexibility.', coachNotes: [{ date: '2023-11-01', text: 'Showing leadership qualities.' }], isApproved: true, addedByCoach: 'Coach Jessica', profilePicture: 'https://placehold.co/100x100/F0B27A/FFFFFF?text=MJ', guardianFirstName: 'Sarah', guardianLastName: 'Johnson', guardianPhone: '555-987-6543' },
+    { id: 'athlete-3', name: 'Olivia Brown', associatedEntities: [{ id: 'power-pumas', name: 'Power Pumas', categoryId: 'team' }, { id: 'tumble-basics', name: 'Tumble Basics', categoryId: 'class' }], skills: [{ name: 'Flyer Skills', status: 'Not Started' }], improvementAreas: 'Build confidence.', coachNotes: [], isApproved: true, addedByCoach: 'Coach Alex', profilePicture: 'https://placehold.co/100x100/96CEB4/FFFFFF?text=OB', guardianFirstName: 'David', guardianLastName: 'Brown', guardianPhone: '555-234-5678' },
+    { id: 'athlete-pending-1', name: 'Sophia Miller', associatedEntities: [], skills: [], improvementAreas: '', coachNotes: [], isApproved: false, addedByCoach: 'Coach Alex', profilePicture: 'https://placehold.co/100x100/DBE2EF/36454F?text=SM', guardianFirstName: '', guardianLastName: '', guardianPhone: '' },
   ],
 };
 
-const MASTER_PASSCODE = 'cheer123'; // Master admin passcode
+const MASTER_PASSCODE = 'cheer123';
 
 // --- Utility Functions ---
-
-// Formats a 10-digit phone number string into ###-###-####
 const formatPhoneNumber = (phoneNumberString) => {
   if (!phoneNumberString) return '';
-  const cleaned = ('' + phoneNumberString).replace(/\D/g, ''); // Remove non-digits
+  const cleaned = ('' + phoneNumberString).replace(/\D/g, '');
   const match = cleaned.match(/^(\d{3})(\d{3})(\d{4})$/);
   if (match) {
     return `${match[1]}-${match[2]}-${match[3]}`;
   }
-  return cleaned; // Return cleaned if no match (e.g., incomplete)
+  return cleaned;
 };
 
 // --- Utility Components ---
-
-// Map icon names to Lucide React components
 const Icon = ({ name, size = 20, className = "" }) => {
   const icons = {
-    User: User,
-    Users: Users,
-    Calendar: Calendar,
-    Settings: Settings,
-    ChevronLeft: ChevronLeft,
-    CheckCircle2: CheckCircle2,
-    XCircle: XCircle,
-    BarChart2: BarChart2,
-    Plus: Plus,
-    Edit: Edit,
-    Trash2: Trash2,
-    Tag: Tag,
-    BookOpen: BookOpen,
-    Layers: Layers,
-    GraduationCap: GraduationCap,
-    X: X,
-    Smartphone: Smartphone,
-    Tablet: Tablet,
-    Monitor: Monitor,
+    User, Users, Calendar, Settings, ChevronLeft, CheckCircle2, XCircle, BarChart2, Plus, Edit, Trash2, Tag, BookOpen, Layers, GraduationCap, X, Smartphone, Tablet, Monitor,
   };
   const LucideIcon = icons[name];
   return LucideIcon ? <LucideIcon size={size} className={className} /> : null;
 };
 
-// A simple loading spinner component
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center p-4">
     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
@@ -131,13 +100,10 @@ const LoadingSpinner = () => (
   </div>
 );
 
-// A customizable modal for messages or confirmations
 const Modal = ({ isOpen, title, children, onClose, showCloseButton = true }) => {
   if (!isOpen) return null;
   return (
-    // Click outside to close the modal
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4" onClick={onClose}>
-      {/* Prevent clicks inside the modal content from closing the modal */}
       <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-auto relative transform transition-all scale-100 opacity-100" onClick={e => e.stopPropagation()}>
         <h3 className="text-xl font-bold text-gray-800 mb-4">{title}</h3>
         {children}
@@ -154,13 +120,10 @@ const Modal = ({ isOpen, title, children, onClose, showCloseButton = true }) => 
   );
 };
 
-// A simple toast notification component
 const ToastNotification = ({ message, type, onClose }) => {
   const bgColor = type === 'success' ? 'bg-green-500' : 'bg-red-500';
   const icon = type === 'success' ? <CheckCircle2 size={20} /> : <XCircle size={20} />;
-
   if (!message) return null;
-
   return (
     <div
       className={`fixed bottom-4 right-4 ${bgColor} text-white px-4 py-3 rounded-lg shadow-lg flex items-center z-50`}
@@ -175,7 +138,6 @@ const ToastNotification = ({ message, type, onClose }) => {
   );
 };
 
-// Generic Confirmation Modal Component
 const ConfirmationModal = ({ isOpen, title, message, onConfirm, onCancel, confirmText = 'Confirm', cancelText = 'Cancel' }) => {
   if (!isOpen) return null;
   return (
@@ -199,19 +161,19 @@ const ConfirmationModal = ({ isOpen, title, message, onConfirm, onCancel, confir
   );
 };
 
-
 // --- Main Application Component ---
 export default function App() {
+  // --- CHANGED: Always use SHARED_USER_ID for all Firestore operations ---
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState(null);
-  const [userRole, setUserRole] = useState('none'); // 'none', 'coach', 'admin'
-  const [loggedInUserName, setLoggedInUserName] = useState(null); // Stores "Admin" or Coach's actual name
+  const [currentUserId] = useState(SHARED_USER_ID);
+  const [userRole, setUserRole] = useState('none');
+  const [loggedInUserName, setLoggedInUserName] = useState(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState('success');
   const [firebaseInitError, setFirebaseInitError] = useState(null);
-  const [deviceType, setDeviceType] = useState('pc'); // 'phone', 'tablet', 'pc'
+  const [deviceType, setDeviceType] = useState('pc');
 
   const showAppToast = useCallback((message, type = 'success', duration = 3000) => {
     setToastMessage(message);
@@ -227,90 +189,48 @@ export default function App() {
   // Function to seed initial data into Firestore
   const seedInitialData = async (uid) => {
     if (!db || !uid) return;
-
     const metadataDocRef = doc(db, PRIVATE_USER_DATA_PATH(uid), COLLECTIONS.APP_METADATA, 'seed_status');
     try {
       const docSnap = await getDoc(metadataDocRef);
-
       if (!docSnap.exists() || !docSnap.data()?.seeded) {
-        console.log("Seeding initial data...");
-
         const batchPromises = [];
-
-        // Seed Categories to public path
         for (const category of initialSeedData.categories) {
           batchPromises.push(setDoc(doc(db, PUBLIC_DATA_PATH, COLLECTIONS.LOOKUP_CATEGORIES, category.id), category));
         }
-        // Seed Entities to public path
         for (const entity of initialSeedData.entities) {
           batchPromises.push(setDoc(doc(db, PUBLIC_DATA_PATH, COLLECTIONS.LOOKUP_ENTITIES, entity.id), entity));
         }
-        // Coaches to private user path
         for (const coach of initialSeedData.coaches) {
           batchPromises.push(setDoc(doc(db, PRIVATE_USER_DATA_PATH(uid), COLLECTIONS.COACHES, coach.id), coach));
         }
-        // Athletes to private user path
         for (const athlete of initialSeedData.athletes) {
           batchPromises.push(setDoc(doc(db, PRIVATE_USER_DATA_PATH(uid), COLLECTIONS.ATHLETES, athlete.id), athlete));
         }
-
         await Promise.all(batchPromises);
         await setDoc(metadataDocRef, { seeded: true, timestamp: new Date() });
-        console.log("Initial data seeded successfully.");
-      } else {
-        console.log("Data already seeded.");
       }
     } catch (e) {
-      console.error("Error seeding initial data:", e);
       showAppToast(`Error seeding data: ${e.message}`, 'error');
     }
   };
 
   // Firebase Initialization and Auth Listener
   useEffect(() => {
-    // firebaseConfig is now guaranteed to have a projectId at this point due to the global initialization logic.
-    // The only remaining check here is whether the Firebase 'app' instance has already been initialized.
-    if (!app) { // Initialize Firebase instances only once
+    if (!app) {
       try {
-        app = initializeApp(firebaseConfig); // Use the globally defined and ensured firebaseConfig
+        app = initializeApp(firebaseConfig);
         db = getFirestore(app);
         auth = getAuth(app);
       } catch (error) {
         const errorMessage = `Error initializing Firebase: ${error.message}. Please check your Firebase config.`;
-        console.error(errorMessage, error);
         setFirebaseInitError(errorMessage);
         setIsAuthReady(true);
         return;
       }
     }
-
-    // Set up Firebase authentication state listener
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        // User is signed in (either from custom token or anonymously)
-        setCurrentUserId(user.uid);
-        await seedInitialData(user.uid); // Seed data for this authenticated user
-      } else {
-        // No user signed in, attempt to sign in
-        try {
-          if (initialAuthToken) {
-            // Sign in with custom token if provided
-            await signInWithCustomToken(auth, initialAuthToken);
-          } else {
-            // Otherwise, sign in anonymously
-            await signInAnonymously(auth);
-          }
-        } catch (error) {
-          console.error("Error during initial authentication:", error);
-          showAppToast(`Authentication failed: ${error.message}`, 'error');
-        }
-      }
-      setIsAuthReady(true); // Firebase authentication state is ready
-    });
-
-    // Cleanup function for the effect
-    return () => unsubscribe();
-  }, [auth, firebaseConfig, initialAuthToken, seedInitialData]); // Dependencies for useEffect
+    // --- CHANGED: Always use SHARED_USER_ID for all Firestore operations ---
+    seedInitialData(SHARED_USER_ID).then(() => setIsAuthReady(true));
+  }, []);
 
   // --- Login Logic ---
   const handleLogin = async (passcode) => {
@@ -318,25 +238,22 @@ export default function App() {
       showAppToast("App is not fully initialized. Please wait or check console for Firebase errors.", 'error');
       return false;
     }
-
     if (passcode === MASTER_PASSCODE) {
       setIsAuthenticated(true);
       setUserRole('admin');
-      setLoggedInUserName('Admin'); // Set admin name
+      setLoggedInUserName('Admin');
       showAppToast("Logged in as Admin!");
       return true;
     }
-
     try {
       const coachesRef = collection(db, PRIVATE_USER_DATA_PATH(currentUserId), COLLECTIONS.COACHES);
       const q = query(coachesRef, where('passcode', '==', passcode), where('isApproved', '==', true));
       const querySnapshot = await getDocs(q);
-
       if (!querySnapshot.empty) {
         const coachData = querySnapshot.docs[0].data();
         setIsAuthenticated(true);
         setUserRole('coach');
-        setLoggedInUserName(coachData.name); // Set coach's name
+        setLoggedInUserName(coachData.name);
         showAppToast(`Logged in as Coach ${coachData.name}!`);
         return true;
       } else {
@@ -344,7 +261,6 @@ export default function App() {
         return false;
       }
     } catch (error) {
-      console.error("Error during login:", error);
       showAppToast(`Login error: ${error.message}`, 'error');
       return false;
     }
@@ -357,7 +273,6 @@ export default function App() {
     showAppToast("Logged out successfully.");
   };
 
-  // Display initialization error if Firebase setup failed
   if (firebaseInitError) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-red-100 text-red-800 p-8 rounded-lg shadow-lg">
@@ -368,7 +283,6 @@ export default function App() {
     );
   }
 
-  // Show loading spinner while authentication state is being determined
   if (!isAuthReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-400 to-indigo-600">
@@ -380,10 +294,8 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-100 font-sans text-gray-900 flex flex-col items-center justify-center p-4">
       {!isAuthenticated ? (
-        // Show login screen if not authenticated
         <LoginScreen onLogin={handleLogin} />
       ) : (
-        // Show main app content if authenticated
         <MainAppContent
           currentUserId={currentUserId}
           userRole={userRole}
@@ -394,8 +306,8 @@ export default function App() {
           privateUserDataPath={PRIVATE_USER_DATA_PATH}
           COLLECTIONS={COLLECTIONS}
           showAppToast={showAppToast}
-          deviceType={deviceType} // Pass deviceType
-          setDeviceType={setDeviceType} // Pass setDeviceType
+          deviceType={deviceType}
+          setDeviceType={setDeviceType}
         />
       )}
       <ToastNotification message={toastMessage} type={toastType} onClose={() => setShowToast(false)} />
@@ -407,6 +319,8 @@ export default function App() {
     </div>
   );
 }
+
+// ...rest of your components remain unchanged...
 
 // --- Login Screen Component ---
 const LoginScreen = ({ onLogin }) => {
@@ -1309,7 +1223,10 @@ const AthleteProfiles = ({ db, currentUserId, userRole, loggedInUserName, public
     (athlete.associatedEntities && athlete.associatedEntities.some(entity =>
       entity.name?.toLowerCase().includes(filterText.toLowerCase()) ||
       entity.categoryId?.toLowerCase().includes(filterText.toLowerCase())
-    ))
+    )) ||
+    (athlete.guardianFirstName && athlete.guardianFirstName.toLowerCase().includes(filterText.toLowerCase())) ||
+    (athlete.guardianLastName && athlete.guardianLastName.toLowerCase().includes(filterText.toLowerCase())) ||
+    (athlete.guardianPhone && athlete.guardianPhone.toLowerCase().includes(filterText.toLowerCase()))
   );
 
   const handleAddAthleteClick = () => {
@@ -1349,7 +1266,7 @@ const AthleteProfiles = ({ db, currentUserId, userRole, loggedInUserName, public
       <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
         <input
           type="text"
-          placeholder="Filter athletes by name, team, or class..."
+          placeholder="Filter athletes by name, team, class, or guardian info..."
           className="w-full sm:w-2/3 px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
           value={filterText}
           onChange={(e) => setFilterText(e.target.value)}
@@ -1389,6 +1306,24 @@ const AthleteProfiles = ({ db, currentUserId, userRole, loggedInUserName, public
                   ? athlete.associatedEntities.map(e => `${e.name} (${e.categoryId})`).join(', ')
                   : 'N/A'}
               </p>
+
+              {/* Parent/Guardian Contact Info Display */}
+              {(athlete.guardianFirstName || athlete.guardianLastName || athlete.guardianPhone) && (
+                <div className="mb-4">
+                  <p className="font-semibold text-gray-800 mb-1">Parent/Guardian Contact:</p>
+                  {athlete.guardianFirstName && athlete.guardianLastName && (
+                    <p className="text-gray-700 text-sm">
+                      Name: {athlete.guardianFirstName} {athlete.guardianLastName}
+                    </p>
+                  )}
+                  {athlete.guardianPhone && (
+                    <p className="text-gray-700 text-sm">
+                      Phone: {formatPhoneNumber(athlete.guardianPhone)}
+                    </p>
+                  )}
+                </div>
+              )}
+
               <p className="text-gray-700 mb-4"><span className="font-semibold">Improvement Areas:</span> {athlete.improvementAreas || 'N/A'}</p>
 
               {/* Skills Section */}
@@ -1412,7 +1347,7 @@ const AthleteProfiles = ({ db, currentUserId, userRole, loggedInUserName, public
                   <ul className="list-disc list-inside space-y-1">
                     {athlete.coachNotes.map((note, index) => (
                       <li key={index} className="text-sm text-gray-700">
-                        {note.date}: {note.text}
+                        {note.date}: {note.text} {note.coachName && <span className="text-gray-500 text-xs">({note.coachName})</span>}
                       </li>
                     ))}
                   </ul>
@@ -1484,11 +1419,18 @@ const AthleteFormModal = ({ db, currentUserId, showAppToast, onClose, athleteToE
   const [newNoteText, setNewNoteText] = useState('');
   const [isApproved, setIsApproved] = useState(false);
   const [profilePicture, setProfilePicture] = useState('');
+  // New state for guardian info
+  const [guardianFirstName, setGuardianFirstName] = useState('');
+  const [guardianLastName, setGuardianLastName] = useState('');
+  const [guardianPhone, setGuardianPhone] = useState('');
+
 
   const [allCategories, setAllCategories] = useState([]);
   const [allEntities, setAllEntities] = useState([]);
 
   const isEditing = !!athleteToEdit;
+  const isAdmin = userRole === 'admin';
+  const isCoach = userRole === 'coach';
 
   // Fetch all categories and entities for dropdowns from public data
   useEffect(() => {
@@ -1519,6 +1461,9 @@ const AthleteFormModal = ({ db, currentUserId, showAppToast, onClose, athleteToE
       setCoachNotes(athleteToEdit.coachNotes || []);
       setIsApproved(athleteToEdit.isApproved || false);
       setProfilePicture(athleteToEdit.profilePicture || '');
+      setGuardianFirstName(athleteToEdit.guardianFirstName || '');
+      setGuardianLastName(athleteToEdit.guardianLastName || '');
+      setGuardianPhone(athleteToEdit.guardianPhone || '');
     }
   }, [athleteToEdit]);
 
@@ -1542,6 +1487,7 @@ const AthleteFormModal = ({ db, currentUserId, showAppToast, onClose, athleteToE
       const newNote = {
         date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
         text: newNoteText.trim(),
+        coachName: loggedInUserName || 'Unknown Coach', // Add coach's name to the note
       };
       setCoachNotes([...coachNotes, newNote]);
       setNewNoteText('');
@@ -1552,6 +1498,17 @@ const AthleteFormModal = ({ db, currentUserId, showAppToast, onClose, athleteToE
     const newNotes = coachNotes.filter((_, i) => i !== index);
     setCoachNotes(newNotes);
   };
+
+  // Phone number formatting for guardian
+  const handleGuardianPhoneChange = (e) => {
+    let value = e.target.value.replace(/\D/g, "");
+    if (value.length > 3 && value.length <= 6)
+      value = value.replace(/(\d{3})(\d+)/, "$1-$2");
+    else if (value.length > 6)
+      value = value.replace(/(\d{3})(\d{3})(\d+)/, "$1-$2-$3");
+    setGuardianPhone(value.slice(0, 12));
+  };
+
 
   // Handle selection/deselection of associated entities
   const handleEntitySelection = (entityId, categoryId, isChecked) => {
@@ -1577,15 +1534,47 @@ const AthleteFormModal = ({ db, currentUserId, showAppToast, onClose, athleteToE
       return;
     }
 
-    const athleteData = {
-      name: name.trim(),
-      associatedEntities: associatedEntities,
+    // Prepare athlete data based on user role and editing status
+    let athleteData = {
       skills: skills.filter(s => s.name.trim()), // Filter out empty skill names
       improvementAreas: improvementAreas.trim(),
       coachNotes: coachNotes,
-      isApproved: isApproved,
-      profilePicture: profilePicture || `https://placehold.co/100x100/cccccc/333333?text=${name ? name.charAt(0) : '?' }`,
     };
+
+    if (isEditing) {
+      // For existing athlete, copy current data, then apply allowed edits
+      athleteData = { ...athleteToEdit, ...athleteData };
+
+      if (isAdmin) {
+        // Admin can edit all fields
+        athleteData.name = name.trim();
+        athleteData.profilePicture = profilePicture || `https://placehold.co/100x100/cccccc/333333?text=${name ? name.charAt(0) : '?' }`;
+        athleteData.associatedEntities = associatedEntities;
+        athleteData.isApproved = isApproved;
+        athleteData.guardianFirstName = guardianFirstName.trim();
+        athleteData.guardianLastName = guardianLastName.trim();
+        athleteData.guardianPhone = guardianPhone.trim();
+      } else if (isCoach) {
+        // Coaches can only edit improvementAreas, skills, and add coachNotes
+        // Other fields remain as they were
+      }
+    } else {
+      // For new athlete, all fields are set
+      athleteData = {
+        name: name.trim(),
+        associatedEntities: associatedEntities,
+        skills: skills.filter(s => s.name.trim()),
+        improvementAreas: improvementAreas.trim(),
+        coachNotes: coachNotes,
+        isApproved: isApproved,
+        profilePicture: profilePicture || `https://placehold.co/100x100/cccccc/333333?text=${name ? name.charAt(0) : '?' }`,
+        addedByCoach: loggedInUserName || userRole,
+        guardianFirstName: guardianFirstName.trim(),
+        guardianLastName: guardianLastName.trim(),
+        guardianPhone: guardianPhone.trim(),
+      };
+    }
+
 
     try {
       if (isEditing) {
@@ -1594,10 +1583,7 @@ const AthleteFormModal = ({ db, currentUserId, showAppToast, onClose, athleteToE
         showAppToast(`Athlete ${name} updated successfully!`);
       } else {
         // Add new athlete
-        await addDoc(collection(db, privateUserDataPath(currentUserId), COLLECTIONS.ATHLETES), {
-          ...athleteData,
-          addedByCoach: loggedInUserName || userRole, // Track who added/approved the athlete
-        });
+        await addDoc(collection(db, privateUserDataPath(currentUserId), COLLECTIONS.ATHLETES), athleteData);
         showAppToast(`Athlete ${name} added successfully!`);
       }
       onClose(); // Close modal on successful submission
@@ -1610,56 +1596,93 @@ const AthleteFormModal = ({ db, currentUserId, showAppToast, onClose, athleteToE
   return (
     <Modal isOpen={true} title={isEditing ? "Edit Athlete Profile" : "Add New Athlete"} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
-        {/* Basic Info */}
-        <div>
-          <label htmlFor="name" className="block text-sm font-medium text-gray-700">Athlete Name</label>
-          <input type="text" id="name" value={name} onChange={(e) => setName(e.target.value)} required
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-        </div>
-        <div>
-          <label htmlFor="profilePicture" className="block text-sm font-medium text-gray-700">Profile Picture URL (optional)</label>
-          <input type="url" id="profilePicture" value={profilePicture} onChange={(e) => setProfilePicture(e.target.value)}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-            {profilePicture && (
-              <img src={profilePicture || `https://placehold.co/100x100/cccccc/333333?text=${name ? name.charAt(0) : '?'}`} alt="Profile Preview" className="w-20 h-20 rounded-full mt-2 object-cover" />
-            )}
-        </div>
-        
-        {/* Associated Entities Section */}
-        <div className="border border-gray-200 rounded-md p-4">
-          <h4 className="text-lg font-semibold text-gray-800 mb-3">Associated Teams/Classes/Groups</h4>
-          {allCategories.map(category => (
-            <div key={category.id} className="mb-4">
-              <p className="font-semibold text-gray-700 mb-2">{category.name}s:</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {allEntities.filter(entity => entity.categoryId === category.id).length === 0 ? (
-                  <p className="text-sm text-gray-500 col-span-full">No {category.name.toLowerCase()} entities available.</p>
-                ) : (
-                  allEntities.filter(entity => entity.categoryId === category.id).map(entity => (
-                    <label key={entity.id} className="inline-flex items-center text-sm text-gray-700">
-                      <input
-                        type="checkbox"
-                        value={entity.id}
-                        checked={associatedEntities.some(e => e.id === entity.id && e.categoryId === category.id)}
-                        onChange={(e) => handleEntitySelection(entity.id, category.id, e.target.checked)}
-                        className="form-checkbox h-4 w-4 text-indigo-600 rounded"
-                      />
-                      <span className="ml-2">{entity.name}</span>
-                    </label>
-                  ))
-                )}
+        {/* Basic Info (Editable by Admin, only viewable by Coach if editing) */}
+        <div className={isEditing && isCoach && !isAdmin ? "opacity-60 pointer-events-none" : ""}>
+          <div>
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700">Athlete Name</label>
+            <input type="text" id="name" value={name} onChange={(e) => setName(e.target.value)} required={isAdmin || !isEditing} disabled={isEditing && isCoach && !isAdmin}
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+          </div>
+          <div>
+            <label htmlFor="profilePicture" className="block text-sm font-medium text-gray-700">Profile Picture URL (optional)</label>
+            <input type="url" id="profilePicture" value={profilePicture} onChange={(e) => setProfilePicture(e.target.value)} disabled={isEditing && isCoach && !isAdmin}
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+              {profilePicture && (
+                <img src={profilePicture || `https://placehold.co/100x100/cccccc/333333?text=${name ? name.charAt(0) : '?'}`} alt="Profile Preview" className="w-20 h-20 rounded-full mt-2 object-cover" />
+              )}
+          </div>
+          
+          {/* Associated Entities Section */}
+          <div className="border border-gray-200 rounded-md p-4">
+            <h4 className="text-lg font-semibold text-gray-800 mb-3">Associated Teams/Classes/Groups</h4>
+            {allCategories.map(category => (
+              <div key={category.id} className="mb-4">
+                <p className="font-semibold text-gray-700 mb-2">{category.name}s:</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {allEntities.filter(entity => entity.categoryId === category.id).length === 0 ? (
+                    <p className="text-sm text-gray-500 col-span-full">No {category.name.toLowerCase()} entities available.</p>
+                  ) : (
+                    allEntities.filter(entity => entity.categoryId === category.id).map(entity => (
+                      <label key={entity.id} className="inline-flex items-center text-sm text-gray-700">
+                        <input
+                          type="checkbox"
+                          value={entity.id}
+                          checked={associatedEntities.some(e => e.id === entity.id && e.categoryId === category.id)}
+                          onChange={(e) => handleEntitySelection(entity.id, category.id, e.target.checked)}
+                          className="form-checkbox h-4 w-4 text-indigo-600 rounded"
+                          disabled={isEditing && isCoach && !isAdmin}
+                        />
+                        <span className="ml-2">{entity.name}</span>
+                      </label>
+                    ))
+                  )}
+                </div>
               </div>
+            ))}
+          </div>
+
+          {/* Parent/Guardian Contact Info */}
+          <div className="border border-gray-200 rounded-md p-4">
+            <h4 className="text-lg font-semibold text-gray-800 mb-3">Parent/Guardian Contact Info</h4>
+            <div>
+              <label htmlFor="guardianFirstName" className="block text-sm font-medium text-gray-700">Guardian First Name</label>
+              <input type="text" id="guardianFirstName" value={guardianFirstName} onChange={(e) => setGuardianFirstName(e.target.value)} disabled={isEditing && isCoach && !isAdmin}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
             </div>
-          ))}
+            <div className="mt-2">
+              <label htmlFor="guardianLastName" className="block text-sm font-medium text-gray-700">Guardian Last Name</label>
+              <input type="text" id="guardianLastName" value={guardianLastName} onChange={(e) => setGuardianLastName(e.target.value)} disabled={isEditing && isCoach && !isAdmin}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+            </div>
+            <div className="mt-2">
+              <label htmlFor="guardianPhone" className="block text-sm font-medium text-gray-700">Guardian Phone Number</label>
+              <input type="text" id="guardianPhone" value={guardianPhone} onChange={handleGuardianPhoneChange} placeholder="###-###-####" maxLength={12} disabled={isEditing && isCoach && !isAdmin}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+            </div>
+          </div>
+
+          {isAdmin && (
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="isApproved"
+                checked={isApproved}
+                onChange={(e) => setIsApproved(e.target.checked)}
+                className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+              />
+              <label htmlFor="isApproved" className="ml-2 block text-sm text-gray-900 font-semibold">Approved</label>
+            </div>
+          )}
         </div>
 
+        {/* Improvement Areas (Editable by Admin & Coach) */}
         <div>
           <label htmlFor="improvementAreas" className="block text-sm font-medium text-gray-700">Improvement Areas</label>
           <textarea id="improvementAreas" value={improvementAreas} onChange={(e) => setImprovementAreas(e.target.value)} rows="3"
             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"></textarea>
         </div>
 
-        {/* Skills Section */}
+        {/* Skills Section (Editable by Admin & Coach) */}
         <div className="border border-gray-200 rounded-md p-4">
           <h4 className="text-lg font-semibold text-gray-800 mb-3">Skills Progress</h4>
           {skills.map((skill, index) => (
@@ -1690,12 +1713,12 @@ const AthleteFormModal = ({ db, currentUserId, showAppToast, onClose, athleteToE
           </button>
         </div>
 
-        {/* Coach Notes Section */}
+        {/* Coach Notes Section (Editable by Admin & Coach) */}
         <div className="border border-gray-200 rounded-md p-4">
           <h4 className="text-lg font-semibold text-gray-800 mb-3">Coach Notes</h4>
           {coachNotes.map((note, index) => (
             <div key={index} className="flex justify-between items-center bg-gray-50 p-2 rounded-md mb-2">
-              <span className="text-sm text-gray-700">{note.date}: {note.text}</span>
+              <span className="text-sm text-gray-700">{note.date}: {note.text} {note.coachName && <span className="text-gray-500 text-xs">({note.coachName})</span>}</span>
               <button type="button" onClick={() => handleRemoveNote(index)} className="text-red-500 hover:text-red-700">
                 <X size={16} />
               </button>
@@ -1714,19 +1737,6 @@ const AthleteFormModal = ({ db, currentUserId, showAppToast, onClose, athleteToE
             </button>
           </div>
         </div>
-
-        {userRole === 'admin' && (
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="isApproved"
-              checked={isApproved}
-              onChange={(e) => setIsApproved(e.target.checked)}
-              className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-            />
-            <label htmlFor="isApproved" className="ml-2 block text-sm text-gray-900 font-semibold">Approved</label>
-          </div>
-        )}
 
         <div className="flex justify-end space-x-4 pt-4 border-t border-gray-100">
           <button type="button" onClick={onClose}
