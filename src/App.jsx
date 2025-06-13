@@ -1900,28 +1900,76 @@ const CoachManagement = ({ db, currentUserId, userRole, publicDataPath, privateU
 };
 
 // --- Coach Form Modal (Add/Edit Coach) ---
-const CoachFormModal = ({ db, currentUserId, showAppToast, onClose, coachToEdit }) => {
+const CoachFormModal = ({ db, currentUserId, showAppToast, onClose, coachToEdit, publicDataPath, privateUserDataPath, COLLECTIONS }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [passcode, setPasscode] = useState('');
-  const [teams, setTeams] = useState(''); // Comma-separated string
-  const [classes, setClasses] = useState(''); // Comma-separated string
+  const [associatedEntities, setAssociatedEntities] = useState([]);
   const [isApproved, setIsApproved] = useState(false);
+
+  // For dropdowns
+  const [allCategories, setAllCategories] = useState([]);
+  const [allEntities, setAllEntities] = useState([]);
 
   const isEditing = !!coachToEdit;
 
+  // Fetch all categories and entities for dropdowns from public data
+  useEffect(() => {
+    if (!db) return;
+    const categoriesRef = collection(db, publicDataPath, COLLECTIONS.LOOKUP_CATEGORIES);
+    const entitiesRef = collection(db, publicDataPath, COLLECTIONS.LOOKUP_ENTITIES);
+
+    const unsubscribeCategories = onSnapshot(categoriesRef, (snapshot) => {
+      setAllCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+    const unsubscribeEntities = onSnapshot(entitiesRef, (snapshot) => {
+      setAllEntities(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
+    return () => {
+      unsubscribeCategories();
+      unsubscribeEntities();
+    };
+  }, [db, publicDataPath, COLLECTIONS.LOOKUP_CATEGORIES, COLLECTIONS.LOOKUP_ENTITIES]);
+
+  // Populate form fields if editing an existing coach
   useEffect(() => {
     if (coachToEdit) {
       setName(coachToEdit.name || '');
       setEmail(coachToEdit.email || '');
       setPhone(coachToEdit.phone || '');
       setPasscode(coachToEdit.passcode || '');
-      setTeams(coachToEdit.teams ? coachToEdit.teams.join(', ') : '');
-      setClasses(coachToEdit.classes ? coachToEdit.classes.join(', ') : '');
+      setAssociatedEntities(coachToEdit.associatedEntities || []);
       setIsApproved(coachToEdit.isApproved || false);
     }
   }, [coachToEdit]);
+
+  // Phone number formatting: ###-###-####
+  const handlePhoneChange = (e) => {
+    let value = e.target.value.replace(/\D/g, "");
+    if (value.length > 3 && value.length <= 6)
+      value = value.replace(/(\d{3})(\d+)/, "$1-$2");
+    else if (value.length > 6)
+      value = value.replace(/(\d{3})(\d{3})(\d+)/, "$1-$2-$3");
+    setPhone(value.slice(0, 12));
+  };
+
+
+  const handleEntitySelection = (entityId, categoryId, isChecked) => {
+    const entity = allEntities.find(e => e.id === entityId && e.categoryId === categoryId);
+    if (!entity) return;
+
+    if (isChecked) {
+      // Add entity if not already associated
+      if (!associatedEntities.some(e => e.id === entity.id && e.categoryId === categoryId)) {
+        setAssociatedEntities(prev => [...prev, { id: entity.id, name: entity.name, categoryId: entity.categoryId }]);
+      }
+    } else {
+      // Remove entity if unselected
+      setAssociatedEntities(prev => prev.filter(e => !(e.id === entity.id && e.categoryId === categoryId)));
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -1936,8 +1984,7 @@ const CoachFormModal = ({ db, currentUserId, showAppToast, onClose, coachToEdit 
       email: email.trim(),
       phone: phone.trim(),
       passcode: passcode.trim(),
-      teams: teams.split(',').map(t => t.trim()).filter(Boolean),
-      classes: classes.split(',').map(c => c.trim()).filter(Boolean),
+      associatedEntities: associatedEntities,
       isApproved: isApproved,
     };
 
@@ -1946,8 +1993,7 @@ const CoachFormModal = ({ db, currentUserId, showAppToast, onClose, coachToEdit 
         await setDoc(doc(db, privateUserDataPath(currentUserId), COLLECTIONS.COACHES, coachToEdit.id), coachData);
         showAppToast(`Coach ${name} updated successfully!`);
       } else {
-        // For new coaches, generate a simple ID if none provided, or use a specific one
-        const coachId = `coach-${Date.now()}`; // Simple unique ID
+        const coachId = `coach-${Date.now()}`;
         await setDoc(doc(db, privateUserDataPath(currentUserId), COLLECTIONS.COACHES, coachId), coachData);
         showAppToast(`Coach ${name} added successfully!`);
       }
@@ -1960,7 +2006,7 @@ const CoachFormModal = ({ db, currentUserId, showAppToast, onClose, coachToEdit 
 
   return (
     <Modal isOpen={true} title={isEditing ? "Edit Coach Profile" : "Add New Coach"} onClose={onClose}>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
         <div>
           <label htmlFor="coachName" className="block text-sm font-medium text-gray-700">Coach Name</label>
           <input type="text" id="coachName" value={name} onChange={(e) => setName(e.target.value)} required
@@ -1973,23 +2019,47 @@ const CoachFormModal = ({ db, currentUserId, showAppToast, onClose, coachToEdit 
         </div>
         <div>
           <label htmlFor="coachPhone" className="block text-sm font-medium text-gray-700">Phone</label>
-          <input type="tel" id="coachPhone" value={phone} onChange={(e) => setPhone(e.target.value)}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+          <input
+            type="text"
+            id="coachPhone"
+            value={phone}
+            onChange={handlePhoneChange}
+            placeholder="###-###-####"
+            maxLength={12}
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+          />
         </div>
         <div>
           <label htmlFor="coachPasscode" className="block text-sm font-medium text-gray-700">Passcode</label>
           <input type="text" id="coachPasscode" value={passcode} onChange={(e) => setPasscode(e.target.value)} required
             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
         </div>
-        <div>
-          <label htmlFor="coachTeams" className="block text-sm font-medium text-gray-700">Teams (comma-separated)</label>
-          <input type="text" id="coachTeams" value={teams} onChange={(e) => setTeams(e.target.value)}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-        </div>
-        <div>
-          <label htmlFor="coachClasses" className="block text-sm font-medium text-gray-700">Classes (comma-separated)</label>
-          <input type="text" id="coachClasses" value={classes} onChange={(e) => setClasses(e.target.value)}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+        {/* Associated Entities Section */}
+        <div className="border border-gray-200 rounded-md p-4">
+          <h4 className="text-lg font-semibold text-gray-800 mb-3">Associated Teams/Classes/Groups</h4>
+          {allCategories.map(category => (
+            <div key={category.id} className="mb-4">
+              <p className="font-semibold text-gray-700 mb-2">{category.name}s:</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {allEntities.filter(entity => entity.categoryId === category.id).length === 0 ? (
+                  <p className="text-sm text-gray-500 col-span-full">No {category.name.toLowerCase()} entities available.</p>
+                ) : (
+                  allEntities.filter(entity => entity.categoryId === category.id).map(entity => (
+                    <label key={entity.id} className="inline-flex items-center text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        value={entity.id}
+                        checked={associatedEntities.some(e => e.id === entity.id && e.categoryId === category.id)}
+                        onChange={(e) => handleEntitySelection(entity.id, category.id, e.target.checked)}
+                        className="form-checkbox h-4 w-4 text-indigo-600 rounded"
+                      />
+                      <span className="ml-2">{entity.name}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+            </div>
+          ))}
         </div>
         <div className="flex items-center">
           <input
@@ -2015,7 +2085,6 @@ const CoachFormModal = ({ db, currentUserId, showAppToast, onClose, coachToEdit 
     </Modal>
   );
 };
-
 // --- Check-in Logs Component ---
 const CheckinLogs = ({ db, currentUserId, userRole, publicDataPath, privateUserDataPath, COLLECTIONS, showAppToast, deviceType }) => {
   const [historicalLogs, setHistoricalLogs] = useState([]);
